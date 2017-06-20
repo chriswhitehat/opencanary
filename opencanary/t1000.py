@@ -1,8 +1,8 @@
 import nmap
 import os, ssl
 from OpenSSL import crypto
-from socket import gethostname
-
+from socket import gethostname, gethostbyname
+from simplejson import dumps
 
 class ImposterService(object):
     """docstring for ImposterService"""
@@ -13,6 +13,7 @@ class ImposterService(object):
         self.protocol = protocol
         self.details = details
         self.certDir = certDir
+        self.ssl = None
         self.name = None
         self.type = 'opencanary'
         self.parseNmapResults()
@@ -24,7 +25,8 @@ class ImposterService(object):
                     (['ftp'], 'ftp'),
                     (['ms-sql'], 'mssql'),
                     (['mysql'], 'mysql'),
-                    (['netbios', 'microsoft-ds'], 'samba'),
+                    #(['netbios', 'microsoft-ds'], 'samba'),
+                    (['netbios', 'microsoft-ds'], 'generictcp'),
                     (['ntp'], 'ntp'),
                     (['rdp'], 'rdp'),
                     (['sip'], 'sip'),
@@ -91,12 +93,37 @@ class ImposterService(object):
     def getOpenCanaryConf(self):
         conf = {self.name + '.enabled': True}
 
+        if self.name == 'http':
+            conf['http.skin.list'] = [{"desc": "Plain HTML Login",
+                                       "name": "basicLogin"},
+                                      {"desc": "Synology NAS Login",
+                                       "name": "nasLogin"}]
+        if self.name == 'httpproxy':
+            conf['httpproxy.skin.list'] = [{"desc": "Squid",
+                                            "name": "sguid"},
+                                           {"desc": "Microsoft ISA Server Web Proxy",
+                                            "name": "ms-isa"}]
+        if self.name == 'telnet':
+            conf['telnet.honeycreds'] = [{"username": "admin",
+                                          "password": "$pbkdf2-sha512$19000$bG1NaY3xvjdGyBlj7N37Xw$dGrmBqqWa1okTCpN3QEmeo9j5DuV2u1EuVFD8Di0GxNiM64To5O/Y66f7UASvnQr8.LCzqTm6awC8Kj/aGKvwA"},
+                                         {"username": "admin",
+                                          "password": "admin1"}]
+
+        return conf
+
+
     def getOpenCanaryInstance(self):
         instance = {self.name + '.port': self.port,
                     self.name + '.banner': self.banner}
 
         if self.name == 'ssh':
-            instance[self.name + '.version'] = self.banner
+            instance['ssh.version'] = self.banner
+        elif self.name == 'http':
+            instance['http.skin'] = 'nasLogin'
+        elif self.name == 'httpproxy':
+            instance['httpproxy.skin'] = 'squid'
+        elif self.name == 'telnet':
+            instance           
 
         return instance
             
@@ -106,50 +133,40 @@ class Imposter(object):
     def __init__(self, mirrorHost, force=False):
         super(Imposter, self).__init__()
         self.mirrorHost = mirrorHost
-        self.servcies = []
+        self.mirrorIP = gethostbyname(self.mirrorHost)
+        self.services = []
         
 
     def scanMirrorHost(self):
         ps = nmap.PortScanner()
     
-        self.nmapResults = ps.scan(hosts=self.mirrorHost, ports='1-65535', arguments='-sV -T5 --script banner --script ssl-cert')['scan'][self.mirrorHost]
+        self.nmap = ps.scan(hosts=self.mirrorHost, ports='1-65535', arguments='-sV -T5 --script banner --script ssl-cert')
+        if self.mirrorIP in self.nmap['scan']:
+            self.nmapResults = self.nmap['scan'][self.mirrorIP]
 
-        if nmapResults['status']['state'] == 'up':
-            self.mirrorHostLive = True
-            for port, details in self.nmapResults['tcp'].iteritems():
-                self.services.append(ImposterService(self.mirrorHost, port, 'tcp', details))
-
-            for port, details in self.nmapResults['udp'].iteritems():
-                self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
+            if self.nmapResults['status']['state'] == 'up':
+                self.mirrorHostLive = True
+                if 'tcp' in self.nmapResults:
+                    for port, details in self.nmapResults['tcp'].iteritems():
+                        self.services.append(ImposterService(self.mirrorHost, port, 'tcp', details))
+                if 'udp' in self.nmapResults:
+                    for port, details in self.nmapResults['udp'].iteritems():
+                        self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
 
 
     def generateOpenCanaryConf(self):
         opencanaryConf = {}
-        for service in [x for x in self.servcies if x.type == 'opencanary']:
-            opencanaryConf['%s.enabled' % service.name] = 'true'
+        for service in [x for x in self.services if x.type == 'opencanary']:
+            opencanaryConf.update(service.getOpenCanaryConf())
 
             instances = '%s.instances' % service.name
             if instances not in opencanaryConf:
                 opencanaryConf[instances] = []
 
-            opencanaryConf[instances].append(service.getOpenCanaryInstance)
+            opencanaryConf[instances].append(service.getOpenCanaryInstance())
 
+        print dumps(opencanaryConf)
 
-'''
-def addService(services, host, service, port, details):
-    instances = '%s.instances' % service
-    if instances not in services:
-        services[instances] = []
-    
-    services[instances].append = {service + '.port': port}    
+    def generateLoadBalanceConf(self):
+        ''''''
 
-    if 'script' in details:
-        if 'banner' in details['script']:
-            services[instances][-1][service + '.banner'] = details['script']['banner']
-
-
-def addLoadBalance(loadBalancers, host, port, details):
-    if 'script' in details:
-        if 'ssl-cert' in details['script']:
-            mirrorCertificate(certDir, appName, mirrorHost, port)
-'''
