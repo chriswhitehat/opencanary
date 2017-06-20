@@ -51,56 +51,64 @@ if sys.platform.startswith("linux"):
 
 logger = getLogger(config)
 
-def start_mod(application, klass):
+def start_mod(application, klass, instances=[]):
+    objs = []
     try:
-        obj = klass(config=config, logger=logger)
-    except Exception as e:
-        err = 'Failed to instantiate instance of class %s in %s. %s' % (
-            klass.__name__,
-            klass.__module__,
-            traceback.format_exc()
-        )
-        logMsg({'logdata': err})
-        return
+        if instances:
+            for instance in instances: 
+                objs.append(klass(config=config, logger=logger, instanceParmas=instance))
+        else:
+            objs.append(klass(config=config, logger=logger))
 
-    if hasattr(obj, 'startYourEngines'):
-        try:
-            obj.startYourEngines()
-            msg = 'Ran startYourEngines on class %s in %s' % (
-                klass.__name__,
-                klass.__module__
-                )
-            logMsg({'logdata': msg})
+    for obj in objs:
 
         except Exception as e:
-            err = 'Failed to run startYourEngines on %s in %s. %s' % (
+            err = 'Failed to instantiate instance of class %s in %s. %s' % (
                 klass.__name__,
                 klass.__module__,
                 traceback.format_exc()
             )
             logMsg({'logdata': err})
-    elif hasattr(obj, 'getService'):
-        try:
-            service = obj.getService()
-            service.setServiceParent(application)
-            msg = 'Added service from class %s in %s to fake' % (
+            return
+
+        if hasattr(obj, 'startYourEngines'):
+            try:
+                obj.startYourEngines()
+                msg = 'Ran startYourEngines on class %s in %s' % (
+                    klass.__name__,
+                    klass.__module__
+                    )
+                logMsg({'logdata': msg})
+
+            except Exception as e:
+                err = 'Failed to run startYourEngines on %s in %s. %s' % (
+                    klass.__name__,
+                    klass.__module__,
+                    traceback.format_exc()
+                )
+                logMsg({'logdata': err})
+        elif hasattr(obj, 'getService'):
+            try:
+                service = obj.getService()
+                service.setServiceParent(application)
+                msg = 'Added service from class %s in %s to fake' % (
+                    klass.__name__,
+                    klass.__module__
+                    )
+                logMsg({'logdata': msg})
+            except Exception as e:
+                err = 'Failed to add service from class %s in %s. %s' % (
+                    klass.__name__,
+                    klass.__module__,
+                    traceback.format_exc()
+                )
+                logMsg({'logdata': err})
+        else:
+            err = 'The class %s in %s does not have any required starting method.' % (
                 klass.__name__,
                 klass.__module__
-                )
-            logMsg({'logdata': msg})
-        except Exception as e:
-            err = 'Failed to add service from class %s in %s. %s' % (
-                klass.__name__,
-                klass.__module__,
-                traceback.format_exc()
             )
             logMsg({'logdata': err})
-    else:
-        err = 'The class %s in %s does not have any required starting method.' % (
-            klass.__name__,
-            klass.__module__
-        )
-        logMsg({'logdata': err})
 
 def logMsg(msg):
     data = {}
@@ -130,7 +138,19 @@ for ep in iter_entry_points(ENTRYPOINT):
 # Add only enabled modules
 start_modules.extend(filter(lambda m: config.moduleEnabled(m.NAME), MODULES))
 
+mirrorServices = enumerateServices(config)
+
 for klass in start_modules:
-    start_mod(application, klass)
+    instances = []
+
+    klassName = klass.NAME.lower()
+    if klassName in mirrorServices:
+        instances.extend(mirrorServices[klassName])
+
+    if klassName+'.instances' in config:
+        instances.extend(config.getVal(klassName+'.instances'))
+
+    start_mod(application, klass, instances)
+
 
 logMsg("Canary running!!!")

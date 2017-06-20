@@ -40,9 +40,13 @@ class Tftp(DatagramProtocol):
 class CanaryTftp(CanaryService):
     NAME = 'tftp'
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal('tftp.port', default=69))
+        if instanceParams:
+            self.port = int(instanceParams['tftp.port'])
+        else:
+            self.port = int(config.getVal('tftp.port', default=69))
+
         self.logtype=self.logger.LOG_TFTP
         self.listen_addr = config.getVal('device.listen_addr', default='')
 

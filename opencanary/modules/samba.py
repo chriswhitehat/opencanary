@@ -39,7 +39,7 @@ if sys.platform.startswith("linux"):
 
     class CanarySamba(CanaryService):
         NAME = 'smb'
-        def __init__(self,config=None, logger=None):
+        def __init__(self,config=None, logger=None, instanceParams={}):
             CanaryService.__init__(self, config=config, logger=logger)
             self.audit_file = config.getVal('smb.auditfile', default='/var/log/samba-audit.log')
             self.sharepath = config.getVal('smb.sharepath', default='/briar/smb/openshare')

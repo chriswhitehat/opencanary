@@ -73,9 +73,14 @@ class RDPObserver(RDPServerObserver):
 class CanaryRDP(ServerFactory, CanaryService):
     NAME = 'rdp'
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         ServerFactory.__init__(self, 16, None, None)
         CanaryService.__init__(self, config, logger)
+
+        if instanceParams:
+            self.port = instanceParams["rdp.port"]
+        else:
+            self.port = config.getVal("rdp.port", 3389)
 
         self.rssFile = self.resource_filename("login.rss")
         reader = rss.createReader(self.rssFile)
@@ -87,7 +92,6 @@ class CanaryRDP(ServerFactory, CanaryService):
             else:
                 break
 
-        self.port = config.getVal("rdp.port", 3389)
         self.logtype = logger.LOG_RDP
 
     def buildObserver(self, controller, addr):

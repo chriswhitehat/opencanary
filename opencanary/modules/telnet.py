@@ -51,10 +51,14 @@ class AlertAuthTelnetProtocol(AuthenticatingTelnetProtocol):
 class Telnet(CanaryService):
     NAME = 'telnet'
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal('telnet.port', default=8023))
-        self.banner = config.getVal('telnet.banner', '').encode('utf8')
+        if instanceParams:
+            self.port = int(instanceParams['telnet.port'])
+            self.banner = instanceParams['telnet.banner'].encode('utf8')
+        else:
+            self.port = int(config.getVal('telnet.port', default=8023))
+            self.banner = config.getVal('telnet.banner', '').encode('utf8')            
         self.logtype = logger.LOG_TELNET_LOGIN_ATTEMPT
         self.listen_addr = config.getVal('device.listen_addr', default='')
 

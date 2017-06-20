@@ -72,6 +72,8 @@ class LoggerBase(object):
     LOG_SNMP_CMD                                = 13001
     LOG_RDP                                     = 14001
     LOG_SIP_REQUEST                             = 15001
+    LOG_GENERIC_TCP                             = 16001
+    LOG_GENERIC_UDP                             = 17001
     LOG_USER_0                                  = 99000
     LOG_USER_1                                  = 99001
     LOG_USER_2                                  = 99002

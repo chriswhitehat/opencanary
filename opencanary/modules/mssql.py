@@ -369,10 +369,16 @@ class SQLFactory(Factory):
 class MSSQL(CanaryService):
     NAME = 'mssql'
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal("mssql.port", default=1433))
-        self.version = config.getVal("mssql.version", default="2012")
+
+        if instanceParams:
+            self.port = int(instanceParams["mssql.port"]
+            self.version = instanceParams["mssql.version"]
+        else:
+            self.port = int(config.getVal("mssql.port", default=1433))
+            self.version = config.getVal("mssql.version", default="2012")
+
         self.listen_addr = config.getVal('device.listen_addr', default='')
         if self.version not in MSSQLProtocol.NMAP_PROBE_1_RESP:
             raise ConfigException("mssql.version", "Invalid MSSQL Version")

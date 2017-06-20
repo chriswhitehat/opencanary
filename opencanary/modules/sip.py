@@ -27,9 +27,12 @@ class SIPServer(Base):
 class CanarySIP(CanaryService):
     NAME = 'SIP'
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal('sip.port', default=5060))
+        if instanceParams:
+            self.port = int(instanceParams['sip.port'])
+        else:
+            self.port = int(config.getVal('sip.port', default=5060))
         self.logtype=self.logger.LOG_SIP_REQUEST
         self.listen_addr = config.getVal('device.listen_addr', default='')
 

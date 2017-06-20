@@ -9,39 +9,32 @@ from twisted.internet.address import IPv4Address
 
 from twisted.internet import protocol
 
-from scapy.all import SNMP
-"""
-    A log-only SNMP server. It won't respond, but it will log SNMP queries.
-"""
-
-class MiniSNMP(DatagramProtocol):
+class MiniUDP(DatagramProtocol):
     def datagramReceived(self, data, (host, port)):
         try:
-            snmp = SNMP(data)
-            community = snmp.community.val
-            requests = [x.oid.val for x in snmp.PDU.varbindlist]
-
-            logdata={'REQUESTS': requests, 'COMMUNITY_STRING': community}
+            self.buffer += data
+            print "Recieved data: ", repr(data)
+            logdata={'DATA': self.buffer.strip("\r\n\x00")}
             self.transport.getPeer = lambda: IPv4Address('UDP', host, port)
             self.factory.log(logdata=logdata, transport=self.transport)
         except Exception as e:
             print e
-            pass
+        pass
 
 
 class CanarySNMP(CanaryService):
-    NAME = 'SNMP'
+    NAME = 'genericudp'
 
     def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
         if instanceParams:
-            self.port = int(instanceParams['snmp.port'])
+            self.port = int(instanceParams['genericudp.port'])
         else:
-            self.port = int(config.getVal('snmp.port', default=161))
-        self.logtype = logger.LOG_SNMP_CMD
+            self.port = int(config.getVal('genericudp.port', default=161))
+        self.logtype = logger.LOG_GENERIC_UDP
         self.listen_addr = config.getVal('device.listen_addr', default='')
 
     def getService(self):
-        f = MiniSNMP()
+        f = MiniUDP()
         f.factory = self
         return internet.UDPServer(self.port, f, interface=self.listen_addr)

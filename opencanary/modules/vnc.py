@@ -136,8 +136,13 @@ class CanaryVNC(Factory, CanaryService):
     NAME = 'VNC'
     protocol = VNCProtocol
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config, logger)
+        if instanceParams:
+            self.port = int(instanceParams["vnc.port"])
+        else:
+            self.port = int(config.getVal("vnc.port", 5900))
+
         self.port = config.getVal("vnc.port", 5900)
         self.logtype = logger.LOG_VNC
 

@@ -37,7 +37,7 @@ class SynLogWatcher(FileSystemWatcher):
 class CanaryPortscan(CanaryService):
     NAME = 'portscan'
 
-    def __init__(self,config=None, logger=None):
+    def __init__(self,config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
         self.audit_file = config.getVal('portscan.logfile', default='/var/log/kern.log')
         self.synrate = int(config.getVal('portscan.synrate', default=5))

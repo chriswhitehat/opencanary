@@ -367,10 +367,14 @@ class CanaryPublicKeyChecker:
 class CanarySSH(CanaryService):
     NAME = 'ssh'
 
-    def __init__(self,config=None, logger=None):
+    def __init__(self,config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal("ssh.port", default=22))
-        self.version = config.getVal("ssh.version", default="SSH-2.0-OpenSSH_5.1p1 Debian-5").encode('utf8')
+        if instanceParams:
+            self.port = int(instanceParams["ssh.port"])
+            self.version = instanceParams["ssh.version"].encode('utf8')
+        else:
+            self.port = int(config.getVal("ssh.port", default=22))
+            self.version = config.getVal("ssh.version", default="SSH-2.0-OpenSSH_5.1p1 Debian-5").encode('utf8')
         self.listen_addr = config.getVal('device.listen_addr', default='')
 
     def getService(self):

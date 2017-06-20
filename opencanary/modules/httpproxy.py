@@ -126,11 +126,17 @@ class HTTPProxyFactory(http.HTTPFactory):
 class HTTPProxy(CanaryService):
     NAME = 'httpproxy'
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal('httpproxy.port', default=8443))
-        self.banner = config.getVal('httpproxy.banner', '').encode('utf8')
-        self.skin = config.getVal('httpproxy.skin', default='squid')
+        if instanceParams:
+            self.port = int(instanceParams['httpproxy.port'])
+            self.banner = instanceParams['httpproxy.banner'].encode('utf8')
+            self.skin = instanceParams['httpproxy.skin']
+        else:
+            self.port = int(config.getVal('httpproxy.port', default=8443))
+            self.banner = config.getVal('httpproxy.banner', '').encode('utf8')
+            self.skin = config.getVal('httpproxy.skin', default='squid')
+
         self.skindir = os.path.join(
             HTTPProxy.resource_dir(), 'skin', self.skin)
         self.logtype = logger.LOG_HTTPPROXY_LOGIN_ATTEMPT

@@ -66,7 +66,7 @@ class CanaryExample1(Factory, CanaryService):
     NAME = 'example1'
     protocol = Example1Protocol
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config, logger)
         self.port = config.getVal("example1.port", 8025)
         self.logtype = logger.LOG_BASE_EXAMPLE

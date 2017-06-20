@@ -159,15 +159,21 @@ class StaticNoDirListing(static.File):
 class CanaryHTTP(CanaryService):
     NAME = 'http'
 
-    def __init__(self, config=None, logger=None):
+    def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
-        self.skin = config.getVal('http.skin', default='basicLogin')
+        if instanceParams:
+            self.port = int(instanceParams['http.port'])
+            ubanner = instanceParams['http.banner']
+            self.banner = ubanner.encode('utf8')
+            self.skin = instanceParams['http.skin']
+        else:            
+            self.port = int(config.getVal('http.port', default=80))
+            ubanner = config.getVal('http.banner', default="Apache/2.2.22 (Ubuntu)")
+            self.banner = ubanner.encode('utf8')
+            self.skin = config.getVal('http.skin', default='basicLogin')
         self.skindir = os.path.join(
             CanaryHTTP.resource_dir(), "skin", self.skin)
         self.staticdir = os.path.join(self.skindir, "static")
-        self.port = int(config.getVal('http.port', default=80))
-        ubanner = config.getVal('http.banner', default="Apache/2.2.22 (Ubuntu)")
-        self.banner = ubanner.encode('utf8')
         StaticNoDirListing.BANNER = self.banner
         self.listen_addr = config.getVal('device.listen_addr', default='')
 

@@ -61,11 +61,15 @@ class LoggingFTP(FTP):
 class CanaryFTP(CanaryService):
     NAME = 'ftp'
 
-    def __init__(self,config=None, logger=None):
+    def __init__(self,config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
+        if instanceParams:
+            self.banner = instanceParams['ftp.banner'].encode('utf8')
+            self.port = instanceParams['ftp.port']
+        else:
+            self.banner = config.getVal('ftp.banner', default='FTP Ready.').encode('utf8')
+            self.port = config.getVal('ftp.port', default=21)
 
-        self.banner = config.getVal('ftp.banner', default='FTP Ready.').encode('utf8')
-        self.port = config.getVal('ftp.port', default=21)
         # find a place to check that logtype is initialised
         # find a place to check that factory has service attached
         self.logtype = logger.LOG_FTP_LOGIN_ATTEMPT
