@@ -13,6 +13,7 @@ class ImposterService(object):
         self.protocol = protocol
         self.details = details
         self.certDir = certDir
+        self.banner = None
         self.ssl = None
         self.name = None
         self.type = 'opencanary'
@@ -50,8 +51,8 @@ class ImposterService(object):
                 self.name = 'genericudp'
 
         if 'script' in self.details:
-            self.banner = self.details.get('banner', None)
-            self.ssl = self.details.get('ssl-cert', None)
+            self.banner = self.details['script'].get('banner', None)
+            self.ssl = self.details['script'].get('ssl-cert', None)
 
         if self.ssl:
             self.mirrorCertificate()
@@ -62,7 +63,7 @@ class ImposterService(object):
         keyFile = "%s_%s.key" % (self.name, self.port)
 
         mirrorCert = ssl.get_server_certificate((self.mirrorHost, int(self.port)), ssl_version=ssl.PROTOCOL_TLSv1)
-        mirrorx509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, mirrorCert)
+        mirrorx509 = crypto.load_certificate(crypto.FILETYPE_PEM, mirrorCert)
         mirrorSubject = mirrorx509.get_subject().get_components()
 
         # create a key pair
@@ -81,8 +82,8 @@ class ImposterService(object):
         cert.get_subject().CN = gethostname()
         cert.sign(k, mirrorx509.get_signature_algorithm())
 
-        self.certFilePath = os.path.join(certDir, certFile)
-        self.keyFilePath = os.path.join(certDir, keyFile)
+        self.certFilePath = os.path.join(self.certDir, certFile)
+        self.keyFilePath = os.path.join(self.certDir, keyFile)
 
         open(self.certFilePath, "wt").write(
             crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
@@ -137,10 +138,10 @@ class Imposter(object):
         self.services = []
         
 
-    def scanMirrorHost(self):
+    def scanMirrorHost(self, ports='1-65535', arguments='-sV -T5 --script banner --script ssl-cert'):
         ps = nmap.PortScanner()
     
-        self.nmap = ps.scan(hosts=self.mirrorHost, ports='1-65535', arguments='-sV -T5 --script banner --script ssl-cert')
+        self.nmap = ps.scan(hosts=self.mirrorHost, ports=ports, arguments=arguments)
         if self.mirrorIP in self.nmap['scan']:
             self.nmapResults = self.nmap['scan'][self.mirrorIP]
 

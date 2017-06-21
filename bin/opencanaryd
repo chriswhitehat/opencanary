@@ -6,12 +6,13 @@ cmd=$1
 
 function usage() {
     echo -e "\n  OpenCanary v1.0\n"
-    echo -e "\topencanaryd [ --start | --dev | --stop | --copyconfig | --usermodule | --help ]\n\n"
+    echo -e "\topencanaryd [ --start | --dev | --stop | --copyconfig | --usermodule | --t1000 <hostname> --help ]\n\n"
     echo -e "\t\t--start\tStarts the opencanaryd process"
     echo -e "\t\t--dev\tRun the opencanaryd process in the foreground"
     echo -e "\t\t--stop\tStops the opencanaryd process"
     echo -e "\t\t--usermodule\tRun opencanaryd in foreground with only usermodules enabled"
     echo -e "\t\t--copyconfig\tCreates a default config file at ${HOME}/.opencanary.conf"
+    echo -e "\t\t--t1000 <hostname>\t Mirrors the hosts services and creates a config file at /etc/opencanary/opencanary.conf"
     echo -e "\t\t--help\tThis help\n"
 
 }
@@ -55,6 +56,8 @@ elif [ "${cmd}" == "--copyconfig" ]; then
     cp "${defaultconf}" ~/.opencanary.conf
     echo -e "[*] A sample config file is ready (${HOME}/.opencanary.conf)\n"
     echo    "[*] Edit your configuration, then launch with \"opencanaryd --start\""
+elif [ "${cmd}" == '--t1000' ]; then
+    sudo python "/${DIR}/../opencanary/t1000.py"
 else
     usage
     exit 1
