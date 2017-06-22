@@ -22,7 +22,7 @@ class MiniUDP(DatagramProtocol):
         pass
 
 
-class CanarySNMP(CanaryService):
+class CanaryGenericUDP(CanaryService):
     NAME = 'genericudp'
 
     def __init__(self, config=None, logger=None, instanceParams={}):

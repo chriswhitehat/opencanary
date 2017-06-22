@@ -143,7 +143,6 @@ class CanaryVNC(Factory, CanaryService):
         else:
             self.port = int(config.getVal("vnc.port", 5900))
 
-        self.port = config.getVal("vnc.port", 5900)
         self.logtype = logger.LOG_VNC
 
 CanaryServiceFactory = CanaryVNC

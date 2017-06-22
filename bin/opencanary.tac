@@ -56,15 +56,20 @@ logger = getLogger(config)
 
 def start_mod(application, klass, instances=[]):
     objs = []
-    try:
-        if instances:
-            for instance in instances: 
-                objs.append(klass(config=config, logger=logger, instanceParmas=instance))
-        else:
+    if instances:
+        for instance in instances: 
+            try:
+                objs.append(klass(config=config, logger=logger, instanceParams=instance))
+            except Exception as e:
+                err = 'Failed to instantiate instance of class %s in %s. %s' % (
+                    klass.__name__,
+                    klass.__module__,
+                    traceback.format_exc()
+                )
+                logMsg({'logdata': err})
+    else:
+        try:
             objs.append(klass(config=config, logger=logger))
-
-    for obj in objs:
-
         except Exception as e:
             err = 'Failed to instantiate instance of class %s in %s. %s' % (
                 klass.__name__,
@@ -72,7 +77,10 @@ def start_mod(application, klass, instances=[]):
                 traceback.format_exc()
             )
             logMsg({'logdata': err})
-            return
+
+    for obj in objs:
+
+        
 
         if hasattr(obj, 'startYourEngines'):
             try:
@@ -141,19 +149,13 @@ for ep in iter_entry_points(ENTRYPOINT):
 # Add only enabled modules
 start_modules.extend(filter(lambda m: config.moduleEnabled(m.NAME), MODULES))
 
-mirrorServices = enumerateServices(config)
-
 for klass in start_modules:
-    instances = []
-
     klassName = klass.NAME.lower()
-    if klassName in mirrorServices:
-        instances.extend(mirrorServices[klassName])
+    if config.getVal(klassName+'.instances', default=''):
+        start_mod(application, klass, config.getVal(klassName+'.instances'))
+    else:
+        start_mod(application, klass)
 
-    if klassName+'.instances' in config:
-        instances.extend(config.getVal(klassName+'.instances'))
-
-    start_mod(application, klass, instances)
 
 
 logMsg("Canary running!!!")
