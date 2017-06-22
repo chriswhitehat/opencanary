@@ -3,6 +3,7 @@ import os, ssl
 from OpenSSL import crypto
 from socket import gethostname, gethostbyname
 from simplejson import dumps
+from collections import OrderedDict
 
 class ImposterService(object):
     """docstring for ImposterService"""
@@ -29,7 +30,7 @@ class ImposterService(object):
                     #(['netbios', 'microsoft-ds'], 'samba'),
                     (['netbios', 'microsoft-ds'], 'generictcp'),
                     (['ntp'], 'ntp'),
-                    (['rdp'], 'rdp'),
+                    (['ms-wbt', 'rdp'], 'rdp'),
                     (['sip'], 'sip'),
                     (['ssh'], 'ssh'),
                     (['snmp'], 'snmp'),
@@ -138,7 +139,7 @@ class Imposter(object):
         self.services = []
         
 
-    def scanMirrorHost(self, ports='1-65535', arguments='-sV -T5 --script banner --script ssl-cert'):
+    def scanMirrorHost(self, ports='1-65535', arguments='-sV -Pn -T5 --script banner --script ssl-cert'):
         ps = nmap.PortScanner()
     
         self.nmap = ps.scan(hosts=self.mirrorHost, ports=ports, arguments=arguments)
@@ -156,7 +157,7 @@ class Imposter(object):
 
 
     def generateOpenCanaryConf(self):
-        opencanaryConf = {}
+        opencanaryConf = OrderedDict()
         for service in [x for x in self.services if x.type == 'opencanary']:
             opencanaryConf.update(service.getOpenCanaryConf())
 
