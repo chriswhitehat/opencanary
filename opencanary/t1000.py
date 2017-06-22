@@ -62,7 +62,11 @@ class ImposterService(object):
         certFile = "%s_%s.crt" % (self.name, self.port)
         keyFile = "%s_%s.key" % (self.name, self.port)
 
-        mirrorCert = ssl.get_server_certificate((self.mirrorHost, int(self.port)), ssl_version=ssl.PROTOCOL_TLSv1)
+        try:
+            mirrorCert = ssl.get_server_certificate((self.mirrorHost, int(self.port)), ssl_version=ssl.PROTOCOL_SSLv23)
+        except:
+            return
+            
         mirrorx509 = crypto.load_certificate(crypto.FILETYPE_PEM, mirrorCert)
         mirrorSubject = mirrorx509.get_subject().get_components()
 
