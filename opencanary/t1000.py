@@ -154,10 +154,12 @@ class Imposter(object):
                 self.mirrorHostLive = True
                 if 'tcp' in self.nmapResults:
                     for port, details in self.nmapResults['tcp'].iteritems():
-                        self.services.append(ImposterService(self.mirrorHost, port, 'tcp', details))
+                        if details['state'] != 'filtered':
+                            self.services.append(ImposterService(self.mirrorHost, port, 'tcp', details))
                 if 'udp' in self.nmapResults:
                     for port, details in self.nmapResults['udp'].iteritems():
-                        self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
+                        if details['state'] != 'filtered':
+                            self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
 
 
     def generateOpenCanaryConf(self):
