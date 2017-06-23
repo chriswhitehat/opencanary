@@ -57,7 +57,7 @@ elif [ "${cmd}" == "--copyconfig" ]; then
     echo -e "[*] A sample config file is ready (${HOME}/.opencanary.conf)\n"
     echo    "[*] Edit your configuration, then launch with \"opencanaryd --start\""
 elif [ "${cmd}" == '--t1000' ]; then
-    sudo python "/${DIR}/../opencanary/t1000.py"
+    sudo python "/${DIR}/t1000.py $2"
 else
     usage
     exit 1

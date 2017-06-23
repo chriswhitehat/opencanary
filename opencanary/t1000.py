@@ -1,9 +1,12 @@
 import nmap
-import os, ssl
+import os, ssl, sys, json
 from OpenSSL import crypto
 from socket import gethostname, gethostbyname
 from simplejson import dumps
 from collections import OrderedDict
+
+from pkg_resources import resource_filename
+
 
 class ImposterService(object):
     """docstring for ImposterService"""
@@ -42,7 +45,7 @@ class ImposterService(object):
             if [x for x in nmapServiceNames if x in self.details['name']]:
                 self.name = potServiceName
                 if self.name == 'nginx':
-                    self.type = 'loadbalance'
+                    self.type = 'reverseproxy'
                 break
 
         if not self.name:
@@ -135,13 +138,48 @@ class ImposterService(object):
             
 
 class Imposter(object):
-    """Enumerate ports and services on mirror host and generates opencanary configs as well as nginx loadbalancing configs"""
+    """Enumerate ports and services on mirror host and generates opencanary configs as well as nginx reverse proxy configs"""
     def __init__(self, mirrorHost, force=False):
         super(Imposter, self).__init__()
         self.mirrorHost = mirrorHost
         self.mirrorIP = gethostbyname(self.mirrorHost)
         self.services = []
+        self.__config = None
+
+    def loadOpenCanaryDefaults(self):
+        try:
+            with open('/etc/opencanaryd/default.json', "r") as fname:
+                print "[-] Loading default config file: /etc/opencanaryd/default.json"
+                self.__config = json.load(fname)
+                return
+        except IOError as e:
+            print "[-] Failed to open %s for reading (%s)" % (fname, e)
+        except ValueError as e:
+            print "[-] Failed to decode json from %s (%s)" % (fname, e)
+            subprocess.call("cp -r %s /var/tmp/config-err-$(date +%%s)" % fname, shell=True)
+        except Exception as e:
+            print "[-] An error occured loading %s (%s)" % (fname, e)
         
+
+    def updateOpenCanaryConf(self):
+
+        self.loadOpenCanaryDefaults()
+
+        for service in [x for x in self.services if x.type == 'opencanary']:
+            self.__config.update(service.getOpenCanaryConf())
+
+            instances = '%s.instances' % service.name
+            if instances not in self.__config:
+                self.__config[instances] = []
+
+            self.__config[instances].append(service.getOpenCanaryInstance())
+
+        if os.path.exists('/etc/opencanaryd/opencanary.conf'):
+            os.rename('/etc/opencanard/opencanary.conf', '/etc/opencanard/opencanary.conf.bak')
+
+        with open('/etc/opencanaryd/opencanary.conf', 'w') as fname:
+            json.dump(self.__config, fname, sort_keys=True, indent=4, separators=(',', ': '))
+
 
     def scanMirrorHost(self, ports='1-65535', arguments='-sV -Pn -T5 --script banner --script ssl-cert'):
         ps = nmap.PortScanner()
@@ -162,19 +200,26 @@ class Imposter(object):
                             self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
 
 
-    def generateOpenCanaryConf(self):
-        opencanaryConf = OrderedDict()
-        for service in [x for x in self.services if x.type == 'opencanary']:
-            opencanaryConf.update(service.getOpenCanaryConf())
-
-            instances = '%s.instances' % service.name
-            if instances not in opencanaryConf:
-                opencanaryConf[instances] = []
-
-            opencanaryConf[instances].append(service.getOpenCanaryInstance())
-
-        print dumps(opencanaryConf)
-
-    def generateLoadBalanceConf(self):
+    def generateReverseProxyConf(self):
         ''''''
 
+
+def main():
+
+    if len(sys.argv) < 2 or not sys.argv[1]:
+        print('Error: missing argument - %s' % sys.argv)
+        exit()
+
+    imp = Imposter(sys.argv[1])
+
+    imp.scanMirrorHost()
+
+    print(imp.updateOpenCanaryConf())
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (KeyboardInterrupt):
+        print("^C")
+        exit()
