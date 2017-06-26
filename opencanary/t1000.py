@@ -90,6 +90,9 @@ class ImposterService(object):
         cert.get_subject().CN = gethostname()
         cert.sign(k, mirrorx509.get_signature_algorithm())
 
+        if not os.path.exists(self.certDir):
+            os.mkdir(self.certDir)
+
         self.certFilePath = os.path.join(self.certDir, certFile)
         self.keyFilePath = os.path.join(self.certDir, keyFile)
 
@@ -135,6 +138,55 @@ class ImposterService(object):
             instance           
 
         return instance
+
+    def setReverseProxyConf(self):
+        app = '%s_%s' % (self.name, self.port)
+
+        if self.ssl:
+            
+            rProxy = '''upstream %s {
+    server %s:%s;
+}
+
+server {
+    listen %s ssl;
+    ssl on;
+    ssl_certificate         /etc/nginx/ssl/%s.crt;
+    ssl_certificate_key     /etc/nginx/ssl/%s.key;
+
+    location / {
+        proxy_pass          https://%s;
+        proxy_pass_header   Server;
+    }
+}\n''' % (app, self.mirrorHost, self.port, self.port, app, app, app)
+
+        else:
+
+            rProxy = '''upstream %s {
+    server %s;
+}
+
+server {
+    listen %s;
+
+    location / {
+        proxy_pass          http://%s;
+        proxy_pass_header   Server;
+    }
+}\n''' % (app, self.mirrorHost, self.port, app)
+
+        confPath = '/etc/nginx/sites-enabled/%s' % (app)
+
+        if os.path.exists(confPath):
+            os.rename(confPath, confPath + '.bak')
+
+        with open(confPath, 'w') as fname:
+            fname.write(rProxy)
+
+
+        
+
+
             
 
 class Imposter(object):
@@ -147,18 +199,16 @@ class Imposter(object):
         self.__config = None
 
     def loadOpenCanaryDefaults(self):
+        defaultPath = '/etc/opencanaryd/default.json'
         try:
-            with open('/etc/opencanaryd/default.json', "r") as fname:
-                print "[-] Loading default config file: /etc/opencanaryd/default.json"
+            with open(defaultPath, "r") as fname:
+                print "[-] Loading default config file: %s" % defaultPath
                 self.__config = json.load(fname)
                 return
         except IOError as e:
-            print "[-] Failed to open %s for reading (%s)" % (fname, e)
-        except ValueError as e:
-            print "[-] Failed to decode json from %s (%s)" % (fname, e)
-            subprocess.call("cp -r %s /var/tmp/config-err-$(date +%%s)" % fname, shell=True)
+            print "[-] Failed to open %s for reading (%s)" % (defaultPath, e)
         except Exception as e:
-            print "[-] An error occured loading %s (%s)" % (fname, e)
+            print "[-] An error occured loading %s (%s)" % (defaultPath, e)
         
 
     def updateOpenCanaryConf(self):
@@ -175,7 +225,7 @@ class Imposter(object):
             self.__config[instances].append(service.getOpenCanaryInstance())
 
         if os.path.exists('/etc/opencanaryd/opencanary.conf'):
-            os.rename('/etc/opencanard/opencanary.conf', '/etc/opencanard/opencanary.conf.bak')
+            os.rename('/etc/opencanaryd/opencanary.conf', '/etc/opencanaryd/opencanary.conf.bak')
 
         with open('/etc/opencanaryd/opencanary.conf', 'w') as fname:
             json.dump(self.__config, fname, sort_keys=True, indent=4, separators=(',', ': '))
@@ -200,8 +250,9 @@ class Imposter(object):
                             self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
 
 
-    def generateReverseProxyConf(self):
-        ''''''
+    def updateReverseProxyConf(self):
+        for service in [x for x in self.services if x.type == 'reverseproxy']:
+            service.setReverseProxyConf()
 
 
 def main():
@@ -214,7 +265,10 @@ def main():
 
     imp.scanMirrorHost()
 
-    print(imp.updateOpenCanaryConf())
+    imp.updateOpenCanaryConf()
+
+    imp.updateReverseProxyConf()
+
 
 
 if __name__ == '__main__':
