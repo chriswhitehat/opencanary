@@ -314,9 +314,11 @@ def patrolServices(conf):
                     scheme = 'http'
 
                 if servicePort > 1024:
-                    os.spawnl(os.P_NOWAIT, '/usr/bin/mitmdump -p %s -R %s://%s:%s/' % (servicePort, scheme, conf['target'], servicePort))
+                    Popen(['/bin/bash', '/usr/bin/mitmdump -p %s -R %s://%s:%s/' % (servicePort, scheme, conf['target'], servicePort)])
+#                    os.spawnl(os.P_NOWAIT, '/usr/bin/mitmdump -p %s -R %s://%s:%s/' % (servicePort, scheme, conf['target'], servicePort))
                 else:
-                    os.spawnl(os.P_NOWAIT, '/usr/bin/mitmdump -p %s -R %s://%s:%s/' % (servicePort, scheme, conf['target'], servicePort))
+                    Popen(['/bin/bash', 'sudo /usr/bin/mitmdump -p %s -R %s://%s:%s/' % (servicePort, scheme, conf['target'], servicePort)])
+#                    os.spawnl(os.P_NOWAIT, '/usr/bin/mitmdump -p %s -R %s://%s:%s/' % (servicePort, scheme, conf['target'], servicePort))
 
     #                runBash('sudo /usr/bin/mitmdump -p %s -R %s://%s:%s/ &' % (servicePort, scheme, conf['target'], servicePort))
 
