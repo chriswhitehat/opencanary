@@ -9,36 +9,6 @@ from subprocess import Popen, PIPE
 from pkg_resources import resource_filename
 
 
-
-def runBash(cmd, lstdout=False, lstderr=True):
-    p = Popen(cmd, shell=True, stdout=PIPE)
-    out = p.stdout
-    err = p.stderr
-    
-    if lstdout and out:
-        log.info(out.read().strip())
-    if lstderr and err:
-        log.error(err.read().strip())
-        
-    p.wait()
-        
-    return out
-
-
-
-def processArgs():
-    parser = argparse.ArgumentParser(description='T-1000, automatic polymorphic low-interaction honeypot', prog='t1000')
-    
-    parser.add_argument('--scan', action='store_true', help='Perform scan on impersonation target.')
-    parser.add_argument('--target', nargs=1, metavar='<hostname>', help="Target to impersonate, overwrites config.")
-    parser.add_argument('--patrol', action='store_true', help='Check impersonation services against listening ports. Bounce services as needed.')
-    parser.add_argument('--conf', nargs=1, metavar='<conf path>', help='Configuration file to scan and watch services')
-    parser.add_argument('--cron', action='store_true', help='prints recommended cron entry.')
-
-    return parser.parse_args()
-
-
-
 class ImposterService(object):
     """docstring for ImposterService"""
     def __init__(self, mirrorHost, port, protocol, details):
@@ -47,9 +17,10 @@ class ImposterService(object):
         self.port = port
         self.protocol = protocol
         self.details = details
-        self.certDir = ''
+        self.certDir = '/etc/opencanaryd/ssl'
         self.banner = None
         self.ssl = None
+        self.certCloned = False
         self.name = None
         self.type = 'opencanary'
         self.parseNmapResults()
@@ -75,6 +46,7 @@ class ImposterService(object):
 
         httpBlacklist = {'product': 'Microsoft HTTPAPI httpd'}
 
+
         for nmapServiceNames, potServiceName in serviceMap:
             if [x for x in nmapServiceNames if x in self.details['name']]:
                 if x == 'http':
@@ -97,8 +69,35 @@ class ImposterService(object):
             self.banner = self.details['script'].get('banner', None)
             self.ssl = self.details['script'].get('ssl-cert', None)
 
-        # if self.ssl:
-        #     self.mirrorCertificate()
+        if self.ssl:
+             self.mirrorCertificate()
+
+
+    def adjustSubjectIssuerCNs(self, mirrorx509):
+        # Check for self signed certificate and recreate self sign while maintaining target mirror cert domain and target issuer domain
+        mirrorCertSubjectCN = mirrorx509.get_subject().CN
+        mirrorCertIssuerCN = mirrorx509.get_issuer().CN
+
+        newSubjectCN = mirrorCertSubjectCN
+        newIssuerCN = mirrorCertIssuerCN
+
+        try:
+            mirrorHostname = self.mirrorHost.split('.', 1)
+
+            if mirrorHostname.lower() in mirrorCertSubjectCN.lower():
+                if mirrorCertSubjectCN.isupper():
+                    newSubjectCN = mirrorCertSubjectCN.replace(mirrorHostname.upper(), gethostbyname().upper())
+                else:
+                    newSubjectCN = mirrorCertSubjectCN.replace(mirrorHostname.lower(), gethostbyname().lower())
+
+            if mirrorHostname.lower() in mirrorCertIssuerCN.lower():
+                if mirrorCertSubjectCN.isupper():
+                    newIssuerCN = mirrorCertIssuerCN.replace(mirrorHostname.upper(), gethostbyname().upper())
+                else:
+                    newIssuerCN = mirrorCertIssuerCN.replace(mirrorHostname.lower(), gethostbyname().lower())
+        except:
+            return newSubjectCN, newIssuerCN
+        return newSubjectCN, newIssuerCN
 
 
     def mirrorCertificate(self, keyLength=2048):
@@ -111,7 +110,6 @@ class ImposterService(object):
             return
 
         mirrorx509 = crypto.load_certificate(crypto.FILETYPE_PEM, mirrorCert)
-        mirrorSubject = mirrorx509.get_subject().get_components()
 
         # create a key pair
         k = crypto.PKey()
@@ -126,7 +124,11 @@ class ImposterService(object):
         cert.set_notAfter(mirrorx509.get_notAfter())
         cert.set_version(mirrorx509.get_version())
         cert.set_pubkey(k)
-        cert.get_subject().CN = gethostname()
+
+        newSubjectCN, newIssuerCN = self.adjustSubjectIssuerCNs(mirrorx509)
+        cert.get_subject().CN = newSubjectCN
+        cert.get_issuer().CN = newIssuerCN
+
         cert.sign(k, mirrorx509.get_signature_algorithm())
 
         if not os.path.exists(self.certDir):
@@ -139,6 +141,9 @@ class ImposterService(object):
             crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
         open(self.keyFilePath, "wt").write(
             crypto.dump_privatekey(crypto.FILETYPE_PEM, k))
+
+        if os.path.exists(self.certFilePath) and os.path.exists(self.keyFilePath):
+            self.certCloned = True
 
 
     def getOpenCanaryConf(self):
@@ -178,15 +183,25 @@ class ImposterService(object):
 
         return instance
 
+
     def setReverseProxyConf(self):
         app = '%s_%s' % (self.name, self.port)
 
         if self.ssl:
-            rProxy = '''port: %s
-reverse: https://%s:%s/\n''' % (self.port, self.mirrorHost, self.port)
+            scheme = 'https'
         else:
-            rProxy = '''port: %s
-reverse: http://%s:%s/\n''' % (self.port, self.mirrorHost, self.port)
+            scheme = 'http'
+
+        if self.ssl and self.certCloned:
+            certs = 'certs:\n    - %s\n' % self.certFilePath
+        else:
+            certs = ''
+
+        rProxy = '''port: %s
+reverse: %s://%s:%s/
+%s''' % (self.port, 
+         scheme, self.mirrorHost, self.port, 
+         certs)
 
         confPath = '/etc/opencanaryd/%s.conf' % (app)
 
@@ -204,8 +219,10 @@ class Imposter(object):
         super(Imposter, self).__init__()
         self.mirrorHost = mirrorHost
         self.mirrorIP = gethostbyname(self.mirrorHost)
+        self.mirrorHostLive = False
         self.services = []
         self.__config = None
+
 
     def loadOpenCanaryDefaults(self):
         defaultPath = '/etc/opencanaryd/default.json'
@@ -221,23 +238,23 @@ class Imposter(object):
 
 
     def updateOpenCanaryConf(self):
+        if self.mirrorHostLive:
+            self.loadOpenCanaryDefaults()
 
-        self.loadOpenCanaryDefaults()
+            for service in [x for x in self.services if x.type == 'opencanary']:
+                self.__config.update(service.getOpenCanaryConf())
 
-        for service in [x for x in self.services if x.type == 'opencanary']:
-            self.__config.update(service.getOpenCanaryConf())
+                instances = '%s.instances' % service.name
+                if instances not in self.__config:
+                    self.__config[instances] = []
 
-            instances = '%s.instances' % service.name
-            if instances not in self.__config:
-                self.__config[instances] = []
+                self.__config[instances].append(service.getOpenCanaryInstance())
 
-            self.__config[instances].append(service.getOpenCanaryInstance())
+            if os.path.exists('/etc/opencanaryd/opencanary.conf'):
+                os.rename('/etc/opencanaryd/opencanary.conf', '/etc/opencanaryd/opencanary.conf.bak')
 
-        if os.path.exists('/etc/opencanaryd/opencanary.conf'):
-            os.rename('/etc/opencanaryd/opencanary.conf', '/etc/opencanaryd/opencanary.conf.bak')
-
-        with open('/etc/opencanaryd/opencanary.conf', 'w') as fname:
-            json.dump(self.__config, fname, sort_keys=True, indent=4, separators=(',', ': '))
+            with open('/etc/opencanaryd/opencanary.conf', 'w') as fname:
+                json.dump(self.__config, fname, sort_keys=True, indent=4, separators=(',', ': '))
 
 
     def scanMirrorHost(self, ports=None, arguments='-sV -Pn --script banner --script ssl-cert'):
@@ -260,19 +277,51 @@ class Imposter(object):
 
 
     def updateReverseProxyConf(self):
-        for service in [x for x in self.services if x.type == 'reverseproxy']:
-            service.setReverseProxyConf()
+        if self.mirrorHostLive:
+            for service in [x for x in self.services if x.type == 'reverseproxy']:
+                service.setReverseProxyConf()
+
 
     def updateT1000(self):
-        t1000Config = {'target': self.mirrorHost}
-        for service in self.services:
-            t1000Config[service.port] = {'port': service.port,
-                                        'name': service.name,
-                                        'type': service.type,
-                                        'ssl': service.ssl}
+        if self.mirrorHostLive:
+            t1000Config = {'target': self.mirrorHost}
+            for service in self.services:
+                t1000Config[service.port] = {'port': service.port,
+                                            'name': service.name,
+                                            'type': service.type}
 
-        with open('/etc/opencanaryd/t1000.conf', 'w') as fname:
-            json.dump(t1000Config, fname, sort_keys=True, indent=4, separators=(',', ': '))
+            with open('/etc/opencanaryd/t1000.conf', 'w') as fname:
+                json.dump(t1000Config, fname, sort_keys=True, indent=4, separators=(',', ': '))
+
+
+
+
+
+def runBash(cmd, lstdout=False, lstderr=True):
+    p = Popen(cmd, shell=True, stdout=PIPE)
+    out = p.stdout
+    err = p.stderr
+    
+    if lstdout and out:
+        log.info(out.read().strip())
+    if lstderr and err:
+        log.error(err.read().strip())
+        
+    p.wait()
+        
+    return out
+
+
+def processArgs():
+    parser = argparse.ArgumentParser(description='T-1000, automatic polymorphic low-interaction honeypot', prog='t1000')
+    
+    parser.add_argument('--scan', action='store_true', help='Perform scan on impersonation target.')
+    parser.add_argument('--target', nargs=1, metavar='<hostname>', help="Target to impersonate, overwrites config.")
+    parser.add_argument('--patrol', action='store_true', help='Check impersonation services against listening ports. Bounce services as needed.')
+    parser.add_argument('--conf', nargs=1, metavar='<conf path>', help='Configuration file to scan and watch services')
+    parser.add_argument('--cron', action='store_true', help='prints recommended cron entry.')
+
+    return parser.parse_args()
 
 
 def loadT1000Config(confPath):
@@ -284,6 +333,7 @@ def loadT1000Config(confPath):
         print "[-] Failed to open %s for reading (%s)" % (confPath, e)
     except Exception as e:
         print "[-] An error occured loading %s (%s)" % (confPath, e)
+
 
 def patrolServices(conf):
 
@@ -308,15 +358,13 @@ def patrolServices(conf):
 
         for servicePort, serviceDetails in conf.iteritems():
             if servicePort != 'target' and serviceDetails['type'] == 'reverseproxy':
-                if serviceDetails['ssl']:
-                    scheme = 'https'
-                else:
-                    scheme = 'http'
 
                 if servicePort > 1024:
-                    Popen(['/usr/bin/mitmdump', '-p', servicePort, '-R', '%s://%s:%s/' % (scheme, conf['target'], servicePort)])
+                    mitmdumpCommand = ['/usr/bin/mitmdump', '--conf', '/etc/opencanaryd/mitm_%s.conf' % servicePort]
                 else:
-                    Popen(['/usr/bin/sudo', '/usr/bin/mitmdump', '-p', servicePort, '-R', '%s://%s:%s/' % (scheme, conf['target'], servicePort)])
+                    mitmdumpCommand = ['/usr/bin/sudo', '/usr/bin/mitmdump', '--conf', '/etc/opencanaryd/mitm_%s.conf' % servicePort]
+
+                Popen(mitmdumpCommand)
 
 
 
