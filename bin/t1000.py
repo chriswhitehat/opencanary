@@ -15,6 +15,7 @@ class ImposterService(object):
         super(ImposterService, self).__init__()
         self.mirrorHost = mirrorHost
         self.port = port
+        self.portCollision = False
         self.protocol = protocol
         self.details = details
         self.certDir = '/etc/opencanaryd/ssl'
@@ -220,6 +221,12 @@ class Imposter(object):
         self.mirrorHostLive = False
         self.services = []
         self.__config = None
+        self.setListeningPorts()
+
+
+    def setListeningPorts(self):
+        ports = runBash("sudo netstat -tlnp | egrep -i 'listen\s' | egrep '0\.0\.0\.0:' | egrep -v 'python|mitmdump' | awk '{print $4}' | cut -d ':' -f 2").read().splitlines()
+        self.portsListening = [int(x) for x in ports]
 
 
     def loadOpenCanaryDefaults(self):
@@ -239,7 +246,7 @@ class Imposter(object):
         if self.mirrorHostLive:
             self.loadOpenCanaryDefaults()
 
-            for service in [x for x in self.services if x.type == 'opencanary']:
+            for service in [x for x in self.services if not x.portCollision if x.type == 'opencanary']:
                 self.__config.update(service.getOpenCanaryConf())
 
                 instances = '%s.instances' % service.name
@@ -268,15 +275,19 @@ class Imposter(object):
                     for port, details in self.nmapResults['tcp'].iteritems():
                         if details['state'] != 'filtered':
                             self.services.append(ImposterService(self.mirrorHost, port, 'tcp', details))
+                            if port in self.portsListening:
+                                self.services[-1].portCollision = True
                 if 'udp' in self.nmapResults:
                     for port, details in self.nmapResults['udp'].iteritems():
                         if details['state'] != 'filtered':
                             self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
+                            if port in self.portsListening:
+                                self.services[-1].portCollision = True
 
 
     def updateReverseProxyConf(self):
         if self.mirrorHostLive:
-            for service in [x for x in self.services if x.type == 'reverseproxy']:
+            for service in [x for x in self.services if not x.portCollision if x.type == 'reverseproxy']:
                 service.setReverseProxyConf()
 
 
@@ -284,9 +295,10 @@ class Imposter(object):
         if self.mirrorHostLive:
             t1000Config = {'target': self.mirrorHost}
             for service in self.services:
-                t1000Config[service.port] = {'port': service.port,
-                                            'name': service.name,
-                                            'type': service.type}
+                if not service.portCollision:
+                    t1000Config[service.port] = {'port': service.port,
+                                                'name': service.name,
+                                                'type': service.type}
 
             with open('/etc/opencanaryd/t1000.conf', 'w') as fname:
                 json.dump(t1000Config, fname, sort_keys=True, indent=4, separators=(',', ': '))
