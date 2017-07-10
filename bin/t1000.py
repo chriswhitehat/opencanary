@@ -137,7 +137,7 @@ class ImposterService(object):
         self.certFilePath = os.path.join(self.certDir, certFile)
         self.keyFilePath = os.path.join(self.certDir, keyFile)
 
-        open(self.certFilePath, "wt").write( crypto.dump_privatekey(crypto.FILETYPE_PEM, k) + \
+        open(self.certFilePath, "wt").write( crypto.dump_privatekey(crypto.FILETYPE_PEM, k) + '\n' + \
                                              crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
 
         if os.path.exists(self.certFilePath) and os.path.exists(self.keyFilePath):
