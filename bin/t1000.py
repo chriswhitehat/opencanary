@@ -1,5 +1,5 @@
 import nmap
-import os, ssl, sys, json, argparse
+import os, ssl, sys, json, argparse, re
 from OpenSSL import crypto
 from socket import gethostname, gethostbyname
 from simplejson import dumps
@@ -23,7 +23,9 @@ class ImposterService(object):
         self.ssl = None
         self.certCloned = False
         self.name = None
+        self.serverHeader = None
         self.type = 'opencanary'
+        self.options = {}
         self.parseNmapResults()
 
     def parseNmapResults(self):
@@ -69,6 +71,12 @@ class ImposterService(object):
         if 'script' in self.details:
             self.banner = self.details['script'].get('banner', None)
             self.ssl = self.details['script'].get('ssl-cert', None)
+            self.headers = self.details['script'].get('http-headers', None)
+
+            if self.headers:
+                serverHeaderMatch = re.search('Server: (?P<serverHeader>.+)', self.headers)
+                if serverHeaderMatch:
+                    self.serverHeader = serverHeaderMatch.groupdict()['serverHeader']
 
         if self.ssl:
              self.mirrorCertificate()
@@ -141,7 +149,7 @@ class ImposterService(object):
         open(self.certFilePath, "wt").write( crypto.dump_privatekey(crypto.FILETYPE_PEM, k) + '\n' + \
                                              crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
 
-        if os.path.exists(self.certFilePath) and os.path.exists(self.keyFilePath):
+        if os.path.exists(self.certFilePath):
             self.certCloned = True
 
 
@@ -193,8 +201,17 @@ class ImposterService(object):
 
         if self.ssl and self.certCloned:
             certs = 'certs:\n    - %s\n' % self.certFilePath
+            certArg = '--cert /etc/opencanaryd/ssl/mitm_%s.crt' % self.port
         else:
             certs = ''
+            certArg = ''
+
+        if self.serverHeader:
+            serverHeader = '--setheader :~q:Server:%s' % gethostname()
+        else:
+            serverHeader = ''
+
+        self.options['args'] = '-p %s -R %s://%s:%s --insecure --replace :h:%s:%s %s %s' % (self.port, scheme, self.mirrorHost, self.port, self.mirrorHost, gethostname(), serverHeader, certArg)
 
         rProxy = '''port: %s
 reverse: %s://%s:%s/
@@ -262,7 +279,7 @@ class Imposter(object):
                 json.dump(self.__config, fname, sort_keys=True, indent=4, separators=(',', ': '))
 
 
-    def scanMirrorHost(self, ports=None, arguments='-sV -Pn --script banner --script ssl-cert'):
+    def scanMirrorHost(self, ports=None, arguments='-sV -Pn --script banner --script ssl-cert --script http-headers'):
         ps = nmap.PortScanner()
 
         self.nmap = ps.scan(hosts=self.mirrorHost, ports=ports, arguments=arguments)
@@ -298,7 +315,8 @@ class Imposter(object):
                 if not service.portCollision:
                     t1000Config[service.port] = {'port': service.port,
                                                 'name': service.name,
-                                                'type': service.type}
+                                                'type': service.type,
+                                                'options': service.options}
 
             with open('/etc/opencanaryd/t1000.conf', 'w') as fname:
                 json.dump(t1000Config, fname, sort_keys=True, indent=4, separators=(',', ': '))
@@ -370,9 +388,12 @@ def patrolServices(conf):
             if servicePort != 'target' and serviceDetails['type'] == 'reverseproxy':
 
                 if servicePort > 1024:
-                    mitmdumpCommand = ['/usr/bin/mitmdump', '--conf', '/etc/opencanaryd/mitm_%s.conf' % servicePort]
+                    mitmdumpCommand = ['/usr/local/bin/mitmdump']
                 else:
-                    mitmdumpCommand = ['/usr/bin/sudo', '/usr/bin/mitmdump', '--conf', '/etc/opencanaryd/mitm_%s.conf' % servicePort]
+                    mitmdumpCommand = ['/usr/bin/sudo', '/usr/local/bin/mitmdump']
+
+                mitmdumpCommand.extend(serviceDetails['options']['args'].split())
+                print "[-] mitmdump command: %s" % (mitmdumpCommand)
 
                 Popen(mitmdumpCommand)
 
