@@ -346,6 +346,7 @@ def processArgs():
     parser.add_argument('--scan', action='store_true', help='Perform scan on impersonation target.')
     parser.add_argument('--target', nargs=1, metavar='<hostname>', help="Target to impersonate, overwrites config.")
     parser.add_argument('--patrol', action='store_true', help='Check impersonation services against listening ports. Bounce services as needed.')
+    parser.add_argument('--kill', action='store_true', help='Stop all honey services.')
     parser.add_argument('--conf', nargs=1, metavar='<conf path>', help='Configuration file to scan and watch services')
     parser.add_argument('--cron', action='store_true', help='prints recommended cron entry.')
 
@@ -398,6 +399,10 @@ def patrolServices(conf):
                 Popen(mitmdumpCommand)
 
 
+def killServices():
+    runBash('/usr/local/bin/opencanaryd --stop; /usr/local/bin/opencanaryd --start')
+    runBash('sudo killall -9 mitmdump')
+
 
 def main():
 
@@ -433,6 +438,8 @@ def main():
         else:
             print('Error: patrol requires a configuration file, use --conf')
 
+    if options.kill:
+        killServices()
 
 
 if __name__ == '__main__':
