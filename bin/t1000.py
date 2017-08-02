@@ -39,7 +39,7 @@ class ImposterService(object):
                     #(['netbios', 'microsoft-ds'], 'samba'),
                     (['netbios', 'microsoft-ds'], 'generictcp'),
                     (['ntp'], 'ntp'),
-                    (['ms-wbt', 'rdp'], 'rdp'),
+                    #(['ms-wbt', 'rdp'], 'rdp'),
                     (['sip'], 'sip'),
                     (['ssh'], 'ssh'),
                     (['snmp'], 'snmp'),
@@ -211,7 +211,7 @@ class ImposterService(object):
         else:
             serverHeader = ''
 
-        self.options['args'] = '-p %s -R %s://%s:%s --insecure --replace :h:%s:%s %s %s' % (self.port, scheme, self.mirrorHost, self.port, self.mirrorHost, gethostname(), serverHeader, certArg)
+        self.options['args'] = '-p %s -R %s://%s:%s --insecure --replace :h:%s:%s %s %s &> /var/log/opencanary/mitm_%s.log' % (self.port, scheme, self.mirrorHost, self.port, self.mirrorHost, gethostname(), serverHeader, certArg, self.port)
 
         rProxy = '''port: %s
 reverse: %s://%s:%s/
@@ -322,6 +322,16 @@ class Imposter(object):
                 json.dump(t1000Config, fname, sort_keys=True, indent=4, separators=(',', ': '))
 
 
+    def updateSamba(self):
+        if self.mirrorHostLive:
+            if 445 in [service.port for service in self.services]:
+                runBash('sudo update-rc.d smbd defaults')
+                runBash('sudo service smbd start')
+            else:
+                runBash('sudo service smbd stop')
+                runBash('sudo update-rc.d -f smbd remove')
+
+
 
 
 
@@ -402,6 +412,7 @@ def patrolServices(conf):
 def killServices():
     runBash('/usr/local/bin/opencanaryd --stop; /usr/local/bin/opencanaryd --start')
     runBash('sudo killall -9 mitmdump')
+    runBash('sudo service smbd stop')
 
 
 def main():
@@ -422,6 +433,8 @@ def main():
         else:
             hostname = conf['target']
 
+        killServices()
+
         imp = Imposter(hostname)
 
         imp.scanMirrorHost()
@@ -431,6 +444,8 @@ def main():
         imp.updateReverseProxyConf()
 
         imp.updateT1000()
+
+        #imp.updateSamba()
 
     if options.patrol:
         if conf:

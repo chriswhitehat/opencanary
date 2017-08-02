@@ -12,8 +12,8 @@ class MiniTCP(Protocol):
         self.buffer = ""
 
     def connectionMade(self):
-        #if self.factory.banner:
-        #    self.transport.write(self.factory.banner)
+        if self.factory.banner:
+            self.transport.write(self.factory.banner)
         self.prompts += 1
 
     def dataReceived(self, data):

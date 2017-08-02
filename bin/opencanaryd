@@ -12,7 +12,6 @@ function usage() {
     echo -e "\t\t--stop\tStops the opencanaryd process"
     echo -e "\t\t--usermodule\tRun opencanaryd in foreground with only usermodules enabled"
     echo -e "\t\t--copyconfig\tCreates a default config file at ${HOME}/.opencanary.conf"
-    echo -e "\t\t--t1000 <hostname>\t Mirrors the hosts services and creates a config file at /etc/opencanary/opencanary.conf"
     echo -e "\t\t--help\tThis help\n"
 
 }
