@@ -211,7 +211,7 @@ class ImposterService(object):
         else:
             serverHeader = ''
 
-        self.options['args'] = '-p %s -R %s://%s:%s --insecure --replace :h:%s:%s %s %s > /var/log/opencanary/mitm_%s.log 2>&1' % (self.port, scheme, self.mirrorHost, self.port, self.mirrorHost, gethostname(), serverHeader, certArg, self.port)
+        self.options['args'] = '-p %s -R %s://%s:%s --insecure --replace :h:%s:%s %s %s > /var/log/opencanary/mitm_%s.log 2>&1 &' % (self.port, scheme, self.mirrorHost, self.port, self.mirrorHost, gethostname(), serverHeader, certArg, self.port)
 
         rProxy = '''port: %s
 reverse: %s://%s:%s/
