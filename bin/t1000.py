@@ -406,7 +406,7 @@ def patrolServices(conf):
                 mitmdumpCommand.extend(serviceDetails['options']['args'].split())
                 print "[-] mitmdump command: %s" % (mitmdumpCommand)
 
-                Popen(mitmdumpCommand)
+                os.system(' '.join(mitmdumpCommand))
 
 
 def killServices():
