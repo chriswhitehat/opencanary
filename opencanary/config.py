@@ -211,3 +211,4 @@ class ConfigException(Exception):
         return "<%s %s (%s)>" % (self.__class__.__name__, self.key, self.msg)
 
 config = Config()
+
