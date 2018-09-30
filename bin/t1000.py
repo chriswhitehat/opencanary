@@ -239,9 +239,6 @@ class Imposter(object):
         self.setListeningPorts()
 
 
-    def setDeviceNodeID(self):
-        self.__config['device.node_id'] = getfqdn()
-
     def setListeningPorts(self):
         ports = runBash("sudo netstat -tlnp | egrep -i 'listen\s' | egrep '0\.0\.0\.0:' | egrep -v 'python|mitmdump' | awk '{print $4}' | cut -d ':' -f 2").read().splitlines()
         self.portsListening = [int(x) for x in ports]
@@ -263,7 +260,6 @@ class Imposter(object):
     def updateOpenCanaryConf(self):
         if self.mirrorHostLive:
             self.loadOpenCanaryDefaults()
-            self.setDeviceNodeID()
 
             for service in [x for x in self.services if not x.portCollision if x.type == 'opencanary']:
                 self.__config.update(service.getOpenCanaryConf())
