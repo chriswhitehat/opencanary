@@ -434,7 +434,7 @@ def main():
     if options.scan and (options.target or conf):
 
         if options.target:
-            if options.target.lower() == "random":
+            if options.target[0].lower() == "random":
                 aquireRandomTarget(conf)
 
             hostname = options.target[0]
