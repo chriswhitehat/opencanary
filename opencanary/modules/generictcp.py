@@ -15,11 +15,12 @@ class MiniTCP(Protocol):
         if self.factory.banner:
             self.transport.write(self.factory.banner)
         self.prompts += 1
+        logdata={'msg': 'Connection Made'}
+        self.factory.log(logdata, transport=self.transport)
 
     def dataReceived(self, data):
         self.buffer += data
-        print "Recieved data: ", repr(data)
-        logdata={'DATA': self.buffer.strip("\r\n\x00")}
+        logdata={'msg': 'Data Recieved', 'DATA': self.buffer.strip("\r\n\x00")}
         self.factory.log(logdata, transport=self.transport)
         
         if self.prompts < 3:

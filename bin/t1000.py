@@ -1,7 +1,7 @@
 import nmap
 import os, ssl, sys, json, argparse, re
 from OpenSSL import crypto
-from socket import gethostname, gethostbyname
+from socket import gethostname, gethostbyname, getfqdn
 from simplejson import dumps
 from collections import OrderedDict
 from subprocess import Popen, PIPE
@@ -215,9 +215,7 @@ class ImposterService(object):
 
         rProxy = '''port: %s
 reverse: %s://%s:%s/
-%s''' % (self.port, 
-         scheme, self.mirrorHost, self.port, 
-         certs)
+%s''' % (self.port, scheme, self.mirrorHost, self.port, certs)
 
         confPath = '/etc/opencanaryd/%s.conf' % (app)
 
@@ -238,8 +236,12 @@ class Imposter(object):
         self.mirrorHostLive = False
         self.services = []
         self.__config = None
+        self.setDeviceNodeID()
         self.setListeningPorts()
 
+
+    def setDeviceNodeID(self):
+        self.__config['device.node_id'] = getfqdn()
 
     def setListeningPorts(self):
         ports = runBash("sudo netstat -tlnp | egrep -i 'listen\s' | egrep '0\.0\.0\.0:' | egrep -v 'python|mitmdump' | awk '{print $4}' | cut -d ':' -f 2").read().splitlines()
@@ -374,6 +376,8 @@ def loadT1000Config(confPath):
         print "[-] An error occured loading %s (%s)" % (confPath, e)
 
 
+#def aquireRandomTarget(conf)
+
 def patrolServices(conf):
 
     opencanaryRestart = False
@@ -428,7 +432,11 @@ def main():
         conf = None
 
     if options.scan and (options.target or conf):
+
         if options.target:
+            if options.target.lower() == "random":
+                aquireRandomTarget(conf)
+
             hostname = options.target[0]
         else:
             hostname = conf['target']
