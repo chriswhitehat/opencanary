@@ -236,7 +236,6 @@ class Imposter(object):
         self.mirrorHostLive = False
         self.services = []
         self.__config = None
-        self.setDeviceNodeID()
         self.setListeningPorts()
 
 
@@ -264,6 +263,7 @@ class Imposter(object):
     def updateOpenCanaryConf(self):
         if self.mirrorHostLive:
             self.loadOpenCanaryDefaults()
+            self.setDeviceNodeID()
 
             for service in [x for x in self.services if not x.portCollision if x.type == 'opencanary']:
                 self.__config.update(service.getOpenCanaryConf())
