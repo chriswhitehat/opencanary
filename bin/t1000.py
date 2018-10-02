@@ -372,7 +372,8 @@ def loadT1000Config(confPath):
         print "[-] An error occured loading %s (%s)" % (confPath, e)
 
 
-#def aquireRandomTarget(conf)
+def aquireRandomTarget(conf):
+    return 'localhost'
 
 def patrolServices(conf):
 
@@ -430,12 +431,16 @@ def main():
     if options.scan and (options.target or conf):
 
         if options.target:
-            if options.target[0].lower() == "random":
-                aquireRandomTarget(conf)
-
-            hostname = options.target[0]
+            hostname = options.target[0].lower()
         else:
-            hostname = conf['target']
+            hostname = conf['target'].lower()
+
+        if hostname == 'custom':
+            print('Error: target set to custom, scan is not applicable.')
+            exit()
+
+        if hostname == "random":
+            hostname = aquireRandomTarget(conf)
 
         killServices()
 
@@ -450,6 +455,8 @@ def main():
         imp.updateT1000()
 
         #imp.updateSamba()
+    else:
+        print('Error: scan requires a configuration file (--conf) or a target (--target)')
 
     if options.patrol:
         if conf:
