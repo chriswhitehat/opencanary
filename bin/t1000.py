@@ -40,7 +40,7 @@ class Sniffer(Thread):
 
     def join(self, timeout=None):
         self.stop_sniffer.set()
-        super().join(timeout)
+        super(Sniffer, self).join(timeout)
         return self.generics
 
     def should_stop_sniffer(self, packet):
