@@ -365,13 +365,17 @@ class Imposter(object):
     def scanMirrorHost(self, ports=None, arguments='-sV -Pn --script banner --script ssl-cert --script http-headers'):
         ps = nmap.PortScanner()
 
+        print("about to start sniffing")
         # Setup sniffing thread to watch nmap scan
         sniffer = Sniffer(self.mirrorIP)
         sniffer.run()
+        print("sniffing")
 
+        print("scanning")
         # run scan, capturing packets from sniffer thread
         self.nmap = ps.scan(hosts=self.mirrorHost, ports=ports, arguments=arguments)
         
+        print("attempting to kill sinffer")
         # Join sniffer thread, killing the sniffing session
         generics = sniffer.join(2.0)
 
@@ -379,6 +383,7 @@ class Imposter(object):
         if sniffer.isAlive():
             sniffer.socket.close()
 
+        print("supposedly sniffer is dead")
         self.probe_mapping = OrderedDict()
 
         # set probe to response mapping
