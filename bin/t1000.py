@@ -15,7 +15,7 @@ from time import sleep
 #https://www.cybrary.it/0p3n/sniffing-inside-thread-scapy-python/
 class Sniffer(Thread):
     def  __init__(self, target, interface="eth0"):
-        super().__init__()
+        super(Sniffer, self).__init__()
 
         self.generics = OrderedDict()
         self.target = target
