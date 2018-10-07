@@ -368,6 +368,8 @@ class Imposter(object):
         print("about to start sniffing")
         # Setup sniffing thread to watch nmap scan
         sniffer = Sniffer(self.mirrorIP)
+        print("sinffer initialized")
+        print("about to run")
         sniffer.run()
         print("sniffing")
 
