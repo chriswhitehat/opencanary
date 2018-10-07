@@ -365,19 +365,13 @@ class Imposter(object):
     def scanMirrorHost(self, ports=None, arguments='-sV -Pn --script banner --script ssl-cert --script http-headers'):
         ps = nmap.PortScanner()
 
-        print("about to start sniffing")
         # Setup sniffing thread to watch nmap scan
         sniffer = Sniffer(self.mirrorIP)
-        print("sinffer initialized")
-        print("about to start")
         sniffer.start()
-        print("sniffing")
 
-        print("scanning")
         # run scan, capturing packets from sniffer thread
         self.nmap = ps.scan(hosts=self.mirrorHost, ports=ports, arguments=arguments)
         
-        print("attempting to kill sinffer")
         # Join sniffer thread, killing the sniffing session
         generics = sniffer.join(2.0)
 
@@ -385,7 +379,6 @@ class Imposter(object):
         if sniffer.isAlive():
             sniffer.socket.close()
 
-        print("supposedly sniffer is dead")
         self.probe_mapping = OrderedDict()
 
         # set probe to response mapping
@@ -394,7 +387,7 @@ class Imposter(object):
             for session in generics[port]:
                 for probe in generics[port][session]:
                     for answer in generics[port][session][probe]:
-                        self.probe_mapping[port][probe.__repr__()] = answer.__repr__()
+                        self.probe_mapping[port][probe.__repr__().strip("'")] = answer.__repr__().strip("'")
 
         # remove probes with null response
         for port in self.probe_mapping.keys():
@@ -551,35 +544,36 @@ def main():
     else:
         conf = None
 
-    if options.scan and (options.target or conf):
+    if options.scan:
+        if options.target or conf:
 
-        if options.target:
-            hostname = options.target[0].lower()
+            if options.target:
+                hostname = options.target[0].lower()
+            else:
+                hostname = conf['target'].lower()
+
+            if hostname == 'custom':
+                print('Error: target set to custom, scan is not applicable.')
+                exit()
+
+            if hostname == "random":
+                hostname = aquireRandomTarget(conf)
+
+            killServices()
+
+            imp = Imposter(hostname)
+
+            imp.scanMirrorHost()
+
+            imp.updateOpenCanaryConf()
+
+            imp.updateReverseProxyConf()
+
+            imp.updateT1000()
+
+            #imp.updateSamba()
         else:
-            hostname = conf['target'].lower()
-
-        if hostname == 'custom':
-            print('Error: target set to custom, scan is not applicable.')
-            exit()
-
-        if hostname == "random":
-            hostname = aquireRandomTarget(conf)
-
-        killServices()
-
-        imp = Imposter(hostname)
-
-        imp.scanMirrorHost()
-
-        imp.updateOpenCanaryConf()
-
-        imp.updateReverseProxyConf()
-
-        imp.updateT1000()
-
-        #imp.updateSamba()
-    else:
-        print('Error: scan requires a configuration file (--conf) or a target (--target)')
+            print('Error: scan requires a configuration file (--conf) or a target (--target)')
 
     if options.patrol:
         if conf:
