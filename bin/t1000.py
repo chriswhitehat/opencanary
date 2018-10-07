@@ -8,6 +8,86 @@ from subprocess import Popen, PIPE
 
 from pkg_resources import resource_filename
 
+from scapy.all import *
+from threading import Thread, Event
+from time import sleep
+
+#https://www.cybrary.it/0p3n/sniffing-inside-thread-scapy-python/
+class Sniffer(Thread):
+    def  __init__(self, target, interface="eth0"):
+        super().__init__()
+
+        self.generics = OrderedDict()
+        self.target = target
+        self.daemon = True
+
+        self.socket = None
+        self.interface = interface
+        self.stop_sniffer = Event()
+
+    def run(self):
+        self.socket = conf.L2listen(
+            type=ETH_P_ALL,
+            iface=self.interface,
+            filter="host %s" % self.target
+        )
+
+        sniff(
+            opened_socket=self.socket,
+            prn=self.parse_packet,
+            stop_filter=self.should_stop_sniffer
+        )
+
+    def join(self, timeout=None):
+        self.stop_sniffer.set()
+        super().join(timeout)
+        return self.generics
+
+    def should_stop_sniffer(self, packet):
+        return self.stop_sniffer.isSet()
+
+    def parse_packet(self, pkt):
+        if Raw in pkt and IP in pkt and TCP in pkt:
+            data = pkt[Raw].load
+            src = pkt[IP].src
+            dst = pkt[IP].dst
+            sport = pkt[TCP].sport
+            dport = pkt[TCP].dport
+            if src == self.target or dst == self.target:
+                if src == self.target:
+                    key = sport
+                    session = dport
+                    direction = 'answer'
+                elif dst == self.target:
+                    key = dport
+                    session = sport
+                    direction = 'probe'
+                else:
+                    return
+
+                if key not in self.generics:
+                    self.generics[key] = OrderedDict()
+
+                if session not in self.generics[key]:
+                    self.generics[key][session] = OrderedDict()
+
+                if session in self.generics[key]:
+                    if direction == 'probe':
+                        if data not in self.generics[key][session]:
+                            self.generics[key][session][data] = []
+                    else:
+                        if len(self.generics[key][session].keys()):
+                            last_probe = self.generics[key][session].keys()[-1]
+                        else:
+                            last_probe = 'Null Probe'
+                        if last_probe not in self.generics[key][session]:
+                            self.generics[key][session][last_probe] = []
+                        self.generics[key][session][last_probe].append(data)
+
+    def print_packet(self, packet):
+        ip_layer = packet.getlayer(IP)
+        print("[!] New Packet: {src} -> {dst}".format(src=ip_layer.src, dst=ip_layer.dst))
+
 
 class ImposterService(object):
     """docstring for ImposterService"""
@@ -20,6 +100,7 @@ class ImposterService(object):
         self.details = details
         self.certDir = '/etc/opencanaryd/ssl'
         self.banner = None
+        self.probes = None
         self.ssl = None
         self.certCloned = False
         self.name = None
@@ -77,6 +158,9 @@ class ImposterService(object):
                 serverHeaderMatch = re.search('Server: (?P<serverHeader>.+)', self.headers)
                 if serverHeaderMatch:
                     self.serverHeader = serverHeaderMatch.groupdict()['serverHeader']
+
+        if 'probes' in self.details:
+            self.probes = self.details['probes']
 
         if self.ssl:
              self.mirrorCertificate()
@@ -177,7 +261,8 @@ class ImposterService(object):
 
     def getOpenCanaryInstance(self):
         instance = {self.name + '.port': self.port,
-                    self.name + '.banner': self.banner}
+                    self.name + '.banner': self.banner,
+                    self.name + '.probes': self.probes}
 
         if self.name == 'ssh':
             instance['ssh.version'] = self.banner
@@ -280,7 +365,36 @@ class Imposter(object):
     def scanMirrorHost(self, ports=None, arguments='-sV -Pn --script banner --script ssl-cert --script http-headers'):
         ps = nmap.PortScanner()
 
+        # Setup sniffing thread to watch nmap scan
+        sniffer = Sniffer(self.mirrorIP)
+        sniffer.run()
+
+        # run scan, capturing packets from sniffer thread
         self.nmap = ps.scan(hosts=self.mirrorHost, ports=ports, arguments=arguments)
+        
+        # Join sniffer thread, killing the sniffing session
+        generics = sniffer.join(2.0)
+
+        # Ensure sniffer is dead and close socket
+        if sniffer.isAlive():
+            sniffer.socket.close()
+
+        self.probe_mapping = OrderedDict()
+
+        # set probe to response mapping
+        for port in generics:
+            self.probe_mapping[port] = OrderedDict()
+            for session in generics[port]:
+                for probe in generics[port][session]:
+                    for answer in generics[port][session][probe]:
+                        self.probe_mapping[port][probe.__repr__()] = answer.__repr__()
+
+        # remove probes with null response
+        for port in self.probe_mapping.keys():
+            for probe in self.probe_mapping[port].keys():
+                if not self.probe_mapping[port][probe]:
+                    del(self.probe_mapping[port][probe])
+
         if self.mirrorIP in self.nmap['scan']:
             self.nmapResults = self.nmap['scan'][self.mirrorIP]
 
@@ -288,6 +402,8 @@ class Imposter(object):
                 self.mirrorHostLive = True
                 if 'tcp' in self.nmapResults:
                     for port, details in self.nmapResults['tcp'].iteritems():
+                        if port in self.probe_mapping:
+                            details['probes'] = self.probe_mapping[port]
                         if details['state'] != 'filtered':
                             self.services.append(ImposterService(self.mirrorHost, port, 'tcp', details))
                             if port in self.portsListening:
