@@ -25,6 +25,8 @@ class MiniTCP(Protocol, TimeoutMixin):
         self._buffer += data
         self.resetTimeout()
 
+        logdata = {'Witnessed Probe': self._buffer.strip("\r\n\x00")}
+        self.factory.log(logdata, transport=self.transport)
         if self._busyReceiving:
             return
 
