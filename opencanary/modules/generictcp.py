@@ -28,15 +28,16 @@ class MiniTCP(Protocol, TimeoutMixin):
     #     # print(data)
     #     # print(toto)    # this will raise NameError error
 
-    # def error_func(self, error):
-    #     logdata = 'Whoops here is the error: {0}'.format(error)
-    #     self.factory.log(logdata, transport=self.transport)
+    def error_func(self, error):
+        logdata = 'Whoops here is the error: {0}'.format(error)
+        self.factory.log(logdata, transport=self.transport)
 
     def dataReceived(self, data):
-        # d = Deferred()
-        # d.addCallback(self.display_data)
-        # d.addErrback(self.error_func)
-        # d.callback(data)
+        d = Deferred()
+        #d.addCallback(self.display_data)
+        d.addErrback(self.error_func)
+        d.callback(data)
+        
         self._buffer += data
         self.resetTimeout()
 
@@ -53,7 +54,7 @@ class MiniTCP(Protocol, TimeoutMixin):
             for probe, response in self.factory.probes.items():
                 if probe in self._buffer_escaped:
                     self.transport.write(response)
-                    logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(response)}
+                    logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(response)[0]}
                     self.factory.log(logdata, transport=self.transport)
         finally:
             self._busyReceiving = False
