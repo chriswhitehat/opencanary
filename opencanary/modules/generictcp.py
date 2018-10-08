@@ -22,25 +22,25 @@ class MiniTCP(Protocol, TimeoutMixin):
             logdata = {'msg': 'Null Probe Response', 'DATA': self.factory.probes['Null Probe'].strip("\r\n\x00")}
             self.factory.log(logdata, transport=self.transport)
 
-    def display_data(self, data):
-        self._buffer_escaped = codecs.escape_encode(self._buffer)[0]
+    # def display_data(self, data):
+    #     self._buffer_escaped = codecs.escape_encode(self._buffer)[0]
 
-        logdata = {'Witnessed Probe': self._buffer_escaped}
-        self.factory.log(logdata, transport=self.transport)
+    #     logdata = {'Witnessed Probe': self._buffer_escaped}
+    #     self.factory.log(logdata, transport=self.transport)
 
-        logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
-        self.factory.log(logdata, transport=self.transport)
-        self.transport.write(self.factory.probes[self._buffer_escaped])
+    #     logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
+    #     self.factory.log(logdata, transport=self.transport)
+    #     self.transport.write(self.factory.probes[self._buffer_escaped])
 
-    def error_func(self, error):
-        logdata = 'Whoops here is the error: {0}'.format(error)
-        self.factory.log(logdata, transport=self.transport)
+    # def error_func(self, error):
+    #     logdata = 'Whoops here is the error: {0}'.format(error)
+    #     self.factory.log(logdata, transport=self.transport)
 
     def dataReceived(self, data):
-        d = Deferred()
-        d.addCallback(self.display_data)
-        d.addErrback(self.error_func)
-        d.callback(data)
+        # d = Deferred()
+        # d.addCallback(self.display_data)
+        # d.addErrback(self.error_func)
+        # d.callback(data)
         
         self._buffer += data
         self.resetTimeout()
@@ -55,7 +55,7 @@ class MiniTCP(Protocol, TimeoutMixin):
             logdata = {'Witnessed Probe': self._buffer_escaped}
             self.factory.log(logdata, transport=self.transport)
 
-            logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
+            logdata = {'msg': 'Probe Response', 'DATA': codecs.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
             self.factory.log(logdata, transport=self.transport)
             self.transport.write(self.factory.probes[self._buffer_escaped])
 
