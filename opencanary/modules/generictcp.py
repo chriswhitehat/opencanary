@@ -22,11 +22,13 @@ class MiniTCP(Protocol, TimeoutMixin):
             logdata = {'msg': 'Null Probe Response', 'DATA': self.factory.probes['Null Probe'].strip("\r\n\x00")}
             self.factory.log(logdata, transport=self.transport)
 
-    # def display_data(self, data):
-    #     logdata = {'display data': codecs.escape_encode(data)[0]}
-    #     self.factory.log(logdata, transport=self.transport)
-    #     # print(data)
-    #     # print(toto)    # this will raise NameError error
+     def display_data(self, data):
+        logdata = {'Witnessed Probe': self._buffer_escaped}
+        self.factory.log(logdata, transport=self.transport)
+
+        logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
+        self.factory.log(logdata, transport=self.transport)
+        self.transport.write(self.factory.probes[self._buffer_escaped])
 
     def error_func(self, error):
         logdata = 'Whoops here is the error: {0}'.format(error)
@@ -34,7 +36,7 @@ class MiniTCP(Protocol, TimeoutMixin):
 
     def dataReceived(self, data):
         d = Deferred()
-        #d.addCallback(self.display_data)
+        d.addCallback(self.display_data)
         d.addErrback(self.error_func)
         d.callback(data)
         
