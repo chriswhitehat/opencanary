@@ -19,7 +19,7 @@ class MiniTCP(Protocol, TimeoutMixin):
         self.factory.log(logdata, transport=self.transport)
         if 'Null Probe' in self.factory.probes:
             self.transport.write(self.factory.probes['Null Probe'])
-            logdata = {'msg': 'Null Probe Response', 'DATA': self.factory.probes['Null Probe'].strip("\r\n\x00")}
+            logdata = {'msg': 'Null Probe Response', 'DATA': codecs.escape_encode(self.factory.probes['Null Probe'])}
             self.factory.log(logdata, transport=self.transport)
 
     # def display_data(self, data):
