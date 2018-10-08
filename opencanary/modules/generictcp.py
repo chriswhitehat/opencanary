@@ -55,9 +55,10 @@ class MiniTCP(Protocol, TimeoutMixin):
             logdata = {'Witnessed Probe': self._buffer_escaped}
             self.factory.log(logdata, transport=self.transport)
 
-            logdata = {'msg': 'Probe Response', 'DATA': codecs.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
-            self.factory.log(logdata, transport=self.transport)
-            self.transport.write(self.factory.probes[self._buffer_escaped])
+            if self._buffer_escaped in self.factory.probes:
+                logdata = {'msg': 'Probe Response', 'DATA': codecs.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
+                self.factory.log(logdata, transport=self.transport)
+                self.transport.write(self.factory.probes[self._buffer_escaped])
 
 
             # for probe, response in self.factory.probes.items():
