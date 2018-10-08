@@ -22,45 +22,39 @@ class MiniTCP(Protocol, TimeoutMixin):
             logdata = {'msg': 'Null Probe Response', 'DATA': self.factory.probes['Null Probe'].strip("\r\n\x00")}
             self.factory.log(logdata, transport=self.transport)
 
-    def display_data(self, data):
-        logdata = {'display data': codecs.escape_encode(data)[0]}
-        self.factory.log(logdata, transport=self.transport)
-        # print(data)
-        # print(toto)    # this will raise NameError error
+    # def display_data(self, data):
+    #     logdata = {'display data': codecs.escape_encode(data)[0]}
+    #     self.factory.log(logdata, transport=self.transport)
+    #     # print(data)
+    #     # print(toto)    # this will raise NameError error
 
-    def error_func(self, error):
-        logdata = 'Whoops here is the error: {0}'.format(error)
-        self.factory.log(logdata, transport=self.transport)
+    # def error_func(self, error):
+    #     logdata = 'Whoops here is the error: {0}'.format(error)
+    #     self.factory.log(logdata, transport=self.transport)
 
     def dataReceived(self, data):
-        d = Deferred()
-        d.addCallback(self.display_data)
-        d.addErrback(self.error_func)
-        d.callback(data)
-
+        # d = Deferred()
+        # d.addCallback(self.display_data)
+        # d.addErrback(self.error_func)
+        # d.callback(data)
         self._buffer += data
         self.resetTimeout()
 
-        logdata = {'Witnessed Probe': self._buffer.strip("\r\n\x00")}
+        self._buffer_escaped = codecs.escape_encode(self._buffer)[0]
+
         self.factory.log(logdata, transport=self.transport)
         if self._busyReceiving:
             return
 
         try:
             self._busyReceiving = True
-
-            logdata = {'Witnessed Probe': self._buffer.strip("\r\n\x00")}
+            logdata = {'Witnessed Probe': self._buffer_escaped}
             self.factory.log(logdata, transport=self.transport)
-            # for probe in self.factory.probes.keys():
-            #     logdata = {'Learned Probe': probe.strip("\r\n\x00")}
-            #     self.factory.log(logdata, transport=self.transport)
 
             for probe, response in self.factory.probes.items():
-                if probe in self._buffer.__repr__():
-                    logdata = {'msg': 'Probe Recieved', 'DATA': self._buffer.strip("\r\n\x00")}
-                    self.factory.log(logdata, transport=self.transport)
+                if probe in self._buffer_escaped:
                     self.transport.write(response)
-                    logdata = {'msg': 'Probe Response', 'DATA': response.strip("\r\n\x00")}
+                    logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(response)}
                     self.factory.log(logdata, transport=self.transport)
         finally:
             self._busyReceiving = False
