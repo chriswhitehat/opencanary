@@ -5,6 +5,7 @@ from twisted.protocols.policies import TimeoutMixin
 from twisted.internet.protocol import Protocol
 from twisted.internet.protocol import Factory
 from twisted.application import internet
+from twisted.internet.defer import Deferred
 
 class MiniTCP(Protocol, TimeoutMixin):
 
@@ -21,7 +22,19 @@ class MiniTCP(Protocol, TimeoutMixin):
             logdata = {'msg': 'Null Probe Response', 'DATA': self.factory.probes['Null Probe'].strip("\r\n\x00")}
             self.factory.log(logdata, transport=self.transport)
 
+    def display_data(self, data):
+        print(data)
+        print(toto)    # this will raise NameError error
+
+    def error_func(self, error):
+        print('[!] Whoops here is the error: {0}'.format(error))
+
     def dataReceived(self, data):
+        d = Deferred()
+        d.addCallback(self.display_data)
+        d.addErrback(self.error_func)
+        d.callback(data)
+
         self._buffer += data
         self.resetTimeout()
 
