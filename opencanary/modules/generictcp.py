@@ -29,7 +29,8 @@ class MiniTCP(Protocol, TimeoutMixin):
         # print(toto)    # this will raise NameError error
 
     def error_func(self, error):
-        print('[!] Whoops here is the error: {0}'.format(error))
+        logdata = 'Whoops here is the error: {0}'.format(error)
+        self.factory.log(logdata, transport=self.transport)
 
     def dataReceived(self, data):
         d = Deferred()
