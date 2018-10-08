@@ -22,7 +22,7 @@ class MiniTCP(Protocol, TimeoutMixin):
             logdata = {'msg': 'Null Probe Response', 'DATA': self.factory.probes['Null Probe'].strip("\r\n\x00")}
             self.factory.log(logdata, transport=self.transport)
 
-     def display_data(self, data):
+    def display_data(self, data):
         self._buffer_escaped = codecs.escape_encode(self._buffer)[0]
 
         logdata = {'Witnessed Probe': self._buffer_escaped}
