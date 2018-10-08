@@ -32,6 +32,10 @@ class MiniTCP(Protocol, TimeoutMixin):
             self._busyReceiving = True
 
             for probe, response in self.factory.probes.items():
+                logdata = {'msg': 'Probe', 'DATA': probe.strip("\r\n\x00")}
+                self.factory.log(logdata, transport=self.transport)
+                logdata = {'msg': 'Buffer', 'DATA': self._buffer.strip("\r\n\x00")}
+                self.factory.log(logdata, transport=self.transport)
                 if probe in self._buffer.__repr__():
                     logdata = {'msg': 'Probe Recieved', 'DATA': self._buffer.strip("\r\n\x00")}
                     self.factory.log(logdata, transport=self.transport)
