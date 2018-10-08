@@ -83,11 +83,11 @@ class CanaryGenericTCP(Factory, CanaryService):
         if instanceParams:
             self.port = int(instanceParams['generictcp.port'])
             self.probes = instanceParams['generictcp.probes']
-            self.blacklist = instanceParams['generictcp.blacklist']
         else:
             self.port = int(config.getVal('generictcp.port', default=161))
             self.probes = config.getVal('generictcp.probes', {})
-            self.blacklist = config.getVal('generictcp.blacklist', [139])
+
+        self.blacklist = config.getVal('generictcp.blacklist', [139])
 
         self.logtype = logger.LOG_GENERIC_TCP
         self.listen_addr = config.getVal('device.listen_addr', default='')
