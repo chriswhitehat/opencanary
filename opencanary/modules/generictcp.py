@@ -23,7 +23,7 @@ class MiniTCP(Protocol, TimeoutMixin):
             self.factory.log(logdata, transport=self.transport)
 
     def display_data(self, data):
-        logdata = {'display data': data}
+        logdata = {'display data': data.encode('utf-8')}
         self.factory.log(logdata, transport=self.transport)
         # print(data)
         # print(toto)    # this will raise NameError error
