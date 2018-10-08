@@ -23,6 +23,8 @@ class MiniTCP(Protocol, TimeoutMixin):
             self.factory.log(logdata, transport=self.transport)
 
      def display_data(self, data):
+        self._buffer_escaped = codecs.escape_encode(self._buffer)[0]
+
         logdata = {'Witnessed Probe': self._buffer_escaped}
         self.factory.log(logdata, transport=self.transport)
 
