@@ -31,7 +31,7 @@ class MiniTCP(Protocol, TimeoutMixin):
         try:
             self._busyReceiving = True
 
-            logdata = {'Witnessed Probe': self._buffer_.strip("\r\n\x00")}
+            logdata = {'Witnessed Probe': self._buffer.strip("\r\n\x00")}
             self.factory.log(logdata, transport=self.transport)
             for probe in self.factory.probes.keys():
                 logdata = {'Learned Probe': probe.strip("\r\n\x00")}
