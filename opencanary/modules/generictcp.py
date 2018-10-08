@@ -42,7 +42,6 @@ class MiniTCP(Protocol, TimeoutMixin):
 
         self._buffer_escaped = codecs.escape_encode(self._buffer)[0]
 
-        self.factory.log(logdata, transport=self.transport)
         if self._busyReceiving:
             return
 
