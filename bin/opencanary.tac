@@ -61,22 +61,12 @@ def start_mod(application, klass, instances=[]):
             try:
                 objs.append(klass(config=config, logger=logger, instanceParams=instance))
             except Exception as e:
-                err = 'Failed to instantiate instance of class %s in %s. %s' % (
-                    klass.__name__,
-                    klass.__module__,
-                    traceback.format_exc()
-                )
-                logMsg(err)
+                logMsg({'logdata': {'msg': 'Failed to instantiate instance', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
     else:
         try:
             objs.append(klass(config=config, logger=logger))
         except Exception as e:
-            err = 'Failed to instantiate instance of class %s in %s. %s' % (
-                klass.__name__,
-                klass.__module__,
-                traceback.format_exc()
-            )
-            logMsg(err)
+            logMsg({'logdata': {'msg': 'Failed to instantiate instance', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
 
     for obj in objs:
 
@@ -85,47 +75,21 @@ def start_mod(application, klass, instances=[]):
         if hasattr(obj, 'startYourEngines'):
             try:
                 obj.startYourEngines()
-                msg = 'Ran startYourEngines on class %s in %s' % (
-                    klass.__name__,
-                    klass.__module__
-                    )
-                logMsg(msg)
+                logMsg({'logdata': {'msg': 'Ran startYourEngines', 'service': klass.__name__, 'module': klass.__module__}})
 
             except Exception as e:
-                err = 'Failed to run startYourEngines on %s in %s. %s' % (
-                    klass.__name__,
-                    klass.__module__,
-                    traceback.format_exc()
-                )
-                logMsg(err)
+                logMsg({'logdata': {'msg': 'Failed to run startYourEngines', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
         elif hasattr(obj, 'getService'):
             try:
                 service = obj.getService()
                 service.setServiceParent(application)
-                msg = 'Added service from class %s in %s to fake' % (
-                    klass.__name__,
-                    klass.__module__
-                    )
-                logMsg(msg)
+                logMsg({'logdata': {'msg': 'Added service to fake', 'service': klass.__name__, 'module': klass.__module__}})
             except Exception as e:
-                err = 'Failed to add service from class %s in %s. %s' % (
-                    klass.__name__,
-                    klass.__module__,
-                    traceback.format_exc()
-                )
-                logMsg(err)
+                logMsg({'logdata': {'msg': 'Failed to add service', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
         else:
-            err = 'The class %s in %s does not have any required starting method.' % (
-                klass.__name__,
-                klass.__module__
-            )
-            logMsg(err)
+            logMsg({'logdata': {'msg': 'Module is missing required starting method', 'service': klass.__name__, 'module': klass.__module__}})
 
-def logMsg(msg):
-    data = {}
-#    data['src_host'] = device_name
-#    data['dst_host'] = node_id
-    data['logdata'] = {'msg': msg}
+def logMsg(data):
     logger.log(data, retry=False)
 
 application = service.Application("opencanaryd")
@@ -140,11 +104,7 @@ for ep in iter_entry_points(ENTRYPOINT):
         klass = ep.load(require=False)
         start_modules.append(klass)
     except Exception as e:
-        err = 'Failed to load class from the entrypoint: %s. %s' % (
-            str(ep),
-            traceback.format_exc()
-            )
-        logMsg(err)
+        logMsg({'logdata': {'msg': 'Faled to load class from the entrypoint', 'service': str(ep), 'traceback': traceback.format_exc()}})
 
 # Add only enabled modules
 start_modules.extend(filter(lambda m: config.moduleEnabled(m.NAME), MODULES))
@@ -158,4 +118,4 @@ for klass in start_modules:
 
 
 
-logMsg("Canary running!!!")
+logMsg({'logdata': {'msg': "OpenCanary running!!!"}})
