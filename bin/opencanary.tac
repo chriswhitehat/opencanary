@@ -66,7 +66,7 @@ def start_mod(application, klass, instances=[]):
                     klass.__module__,
                     traceback.format_exc()
                 )
-                logMsg({'logdata': err})
+                logMsg(err)
     else:
         try:
             objs.append(klass(config=config, logger=logger))
@@ -76,7 +76,7 @@ def start_mod(application, klass, instances=[]):
                 klass.__module__,
                 traceback.format_exc()
             )
-            logMsg({'logdata': err})
+            logMsg(err)
 
     for obj in objs:
 
@@ -89,7 +89,7 @@ def start_mod(application, klass, instances=[]):
                     klass.__name__,
                     klass.__module__
                     )
-                logMsg({'logdata': msg})
+                logMsg(msg)
 
             except Exception as e:
                 err = 'Failed to run startYourEngines on %s in %s. %s' % (
@@ -97,7 +97,7 @@ def start_mod(application, klass, instances=[]):
                     klass.__module__,
                     traceback.format_exc()
                 )
-                logMsg({'logdata': err})
+                logMsg(err)
         elif hasattr(obj, 'getService'):
             try:
                 service = obj.getService()
@@ -106,20 +106,20 @@ def start_mod(application, klass, instances=[]):
                     klass.__name__,
                     klass.__module__
                     )
-                logMsg({'logdata': msg})
+                logMsg(msg)
             except Exception as e:
                 err = 'Failed to add service from class %s in %s. %s' % (
                     klass.__name__,
                     klass.__module__,
                     traceback.format_exc()
                 )
-                logMsg({'logdata': err})
+                logMsg(err)
         else:
             err = 'The class %s in %s does not have any required starting method.' % (
                 klass.__name__,
                 klass.__module__
             )
-            logMsg({'logdata': err})
+            logMsg(err)
 
 def logMsg(msg):
     data = {}
@@ -144,7 +144,7 @@ for ep in iter_entry_points(ENTRYPOINT):
             str(ep),
             traceback.format_exc()
             )
-        logMsg({'logdata': err})
+        logMsg(err)
 
 # Add only enabled modules
 start_modules.extend(filter(lambda m: config.moduleEnabled(m.NAME), MODULES))
