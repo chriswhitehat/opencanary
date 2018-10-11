@@ -15,11 +15,11 @@ class MiniTCP(Protocol, TimeoutMixin):
         self._buffer = ""
 
     def connectionMade(self):
-        logdata={'msg': 'Connection Made'}
+        logdata={'msg': 'Probe', 'probe_action': 'Connection Established'}
         self.factory.log(logdata, transport=self.transport)
         if 'Null Probe' in self.factory.probes:
             self.transport.write(self.factory.probes['Null Probe'])
-            logdata = {'msg': 'Null Probe Response', 'DATA': codecs.escape_encode(self.factory.probes['Null Probe'])}
+            logdata = {'msg': 'Probe', 'probe_action': 'Probe Response Sent', 'DATA': codecs.escape_encode(self.factory.probes['Null Probe'])}
             self.factory.log(logdata, transport=self.transport)
 
     # def display_data(self, data):
@@ -52,11 +52,11 @@ class MiniTCP(Protocol, TimeoutMixin):
 
         try:
             self._busyReceiving = True
-            logdata = {'Witnessed Probe': self._buffer_escaped}
+            logdata = {'msg': 'Probe', 'probe_action': 'Probe Data Recieved', 'DATA': self._buffer_escaped}
             self.factory.log(logdata, transport=self.transport)
 
             if self._buffer_escaped in self.factory.probes:
-                logdata = {'msg': 'Probe Response', 'DATA': codecs.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
+                logdata = {'msg': 'Probe', 'probe_action': 'Probe Response Sent', 'DATA': codecs.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
                 self.factory.log(logdata, transport=self.transport)
                 self.transport.write(self.factory.probes[self._buffer_escaped])
 
