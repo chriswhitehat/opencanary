@@ -88,6 +88,8 @@ class LoggerBase(object):
     def sanitizeLog(self, logdata):
         logdata['node_id'] = self.node_id
         logdata['event_time'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        logdata['host_name'] = socket.getfqdn()
+        logdata['host_ip'] = socket.gethostbyname(socket.gethostname())
         if not logdata.has_key('src_host'):
             logdata['src_host'] = ''
         if not logdata.has_key('src_port'):

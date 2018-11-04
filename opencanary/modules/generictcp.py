@@ -19,29 +19,10 @@ class MiniTCP(Protocol, TimeoutMixin):
         self.factory.log(logdata, transport=self.transport)
         if 'Null Probe' in self.factory.probes:
             self.transport.write(self.factory.probes['Null Probe'])
-            logdata = {'msg': 'Probe', 'probe_action': 'Probe Response Sent', 'DATA': codecs.escape_encode(self.factory.probes['Null Probe'])}
+            logdata = {'msg': 'Probe', 'probe_action': 'Probe Response Sent', 'DATA': codecs.escape_encode(self.factory.probes['Null Probe'])[0]}
             self.factory.log(logdata, transport=self.transport)
 
-    # def display_data(self, data):
-    #     self._buffer_escaped = codecs.escape_encode(self._buffer)[0]
-
-    #     logdata = {'Witnessed Probe': self._buffer_escaped}
-    #     self.factory.log(logdata, transport=self.transport)
-
-    #     logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(self.factory.probes[self._buffer_escaped])[0]}
-    #     self.factory.log(logdata, transport=self.transport)
-    #     self.transport.write(self.factory.probes[self._buffer_escaped])
-
-    # def error_func(self, error):
-    #     logdata = 'Whoops here is the error: {0}'.format(error)
-    #     self.factory.log(logdata, transport=self.transport)
-
     def dataReceived(self, data):
-        # d = Deferred()
-        # d.addCallback(self.display_data)
-        # d.addErrback(self.error_func)
-        # d.callback(data)
-        
         self._buffer += data
         self.resetTimeout()
 
@@ -60,12 +41,6 @@ class MiniTCP(Protocol, TimeoutMixin):
                 self.factory.log(logdata, transport=self.transport)
                 self.transport.write(self.factory.probes[self._buffer_escaped])
 
-
-            # for probe, response in self.factory.probes.items():
-            #     if probe in self._buffer_escaped:
-            #         self.transport.write(response)
-            #         logdata = {'msg': 'Probe Response', 'DATA': codes.escape_encode(response)[0]}
-            #         self.factory.log(logdata, transport=self.transport)
         finally:
             self._busyReceiving = False
 
