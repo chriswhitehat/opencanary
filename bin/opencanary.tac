@@ -61,12 +61,12 @@ def start_mod(application, klass, instances=[]):
             try:
                 objs.append(klass(config=config, logger=logger, instanceParams=instance))
             except Exception as e:
-                logMsg({'logdata': {'msg': 'Failed to instantiate instance', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
+                logMsg({'logdata': {'msg': 'Failed to instantiate instance', 'service': klass.__name__, 'module': klass.__module__, 'port': klass.port, 'traceback': traceback.format_exc()}})
     else:
         try:
             objs.append(klass(config=config, logger=logger))
         except Exception as e:
-            logMsg({'logdata': {'msg': 'Failed to instantiate instance', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
+            logMsg({'logdata': {'msg': 'Failed to instantiate instance', 'service': klass.__name__, 'module': klass.__module__, 'port': klass.port, 'traceback': traceback.format_exc()}})
 
     for obj in objs:
 
@@ -75,19 +75,19 @@ def start_mod(application, klass, instances=[]):
         if hasattr(obj, 'startYourEngines'):
             try:
                 obj.startYourEngines()
-                logMsg({'logdata': {'msg': 'Ran startYourEngines', 'service': klass.__name__, 'module': klass.__module__}})
+                logMsg({'logdata': {'msg': 'Ran startYourEngines', 'service': klass.__name__, 'module': klass.__module__, 'port': klass.port}})
 
             except Exception as e:
-                logMsg({'logdata': {'msg': 'Failed to run startYourEngines', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
+                logMsg({'logdata': {'msg': 'Failed to run startYourEngines', 'service': klass.__name__, 'module': klass.__module__, 'port': klass.port, 'traceback': traceback.format_exc()}})
         elif hasattr(obj, 'getService'):
             try:
                 service = obj.getService()
                 service.setServiceParent(application)
-                logMsg({'logdata': {'msg': 'Added service to fake', 'service': klass.__name__, 'module': klass.__module__}})
+                logMsg({'logdata': {'msg': 'Added service to fake', 'service': klass.__name__, 'module': klass.__module__, 'port': klass.port}})
             except Exception as e:
-                logMsg({'logdata': {'msg': 'Failed to add service', 'service': klass.__name__, 'module': klass.__module__, 'traceback': traceback.format_exc()}})
+                logMsg({'logdata': {'msg': 'Failed to add service', 'service': klass.__name__, 'module': klass.__module__, 'port': klass.port, 'traceback': traceback.format_exc()}})
         else:
-            logMsg({'logdata': {'msg': 'Module is missing required starting method', 'service': klass.__name__, 'module': klass.__module__}})
+            logMsg({'logdata': {'msg': 'Module is missing required starting method', 'service': klass.__name__, 'module': klass.__module__, 'port': klass.port}})
 
 def logMsg(data):
     logger.log(data, retry=False)
