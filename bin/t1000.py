@@ -1,5 +1,10 @@
 import nmap
+import socket
+import random
+import string
+import codecs
 import os, ssl, sys, json, argparse, re
+from datetime import datetime
 from OpenSSL import crypto
 from socket import gethostname, gethostbyname, getfqdn
 from simplejson import dumps
@@ -333,13 +338,13 @@ class Imposter(object):
         defaultPath = '/etc/opencanaryd/default.json'
         try:
             with open(defaultPath, "r") as fname:
-                print "[-] Loading default config file: %s" % defaultPath
+                print("[-] Loading default config file: %s" % defaultPath)
                 self.__config = json.load(fname)
                 return
         except IOError as e:
-            print "[-] Failed to open %s for reading (%s)" % (defaultPath, e)
+            print("[-] Failed to open %s for reading (%s)" % (defaultPath, e))
         except Exception as e:
-            print "[-] An error occured loading %s (%s)" % (defaultPath, e)
+            print("[-] An error occured loading %s (%s)" % (defaultPath, e))
 
 
     def updateOpenCanaryConf(self):
@@ -446,6 +451,159 @@ class Imposter(object):
                 runBash('sudo update-rc.d -f smbd remove')
 
 
+# https://github.com/clong/detect-responder
+class Respondered(object):
+
+    def __init__(self):
+        self.events = []
+
+    def gen_event(self):
+        event = {}
+        event['event_time'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        event['node_hostname'] = socket.getfqdn()
+        event['node_ip'] = socket.gethostbyname(socket.gethostname())
+        event['dst_host'] = event['node_ip']
+        event['logtype'] = 'RESPONDERED'
+        event['logdata'] = {}
+        return event
+
+    # Send a LLMNR request for WPAD to Multicast
+    def query_llmnr(self, query, length):
+        # Configure the socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+        sock.settimeout(2)
+        sock.bind(('0.0.0.0', 0))
+
+        # Configure the destination address and packet data
+        mcast_addr = '224.0.0.252'
+        mcast_port = 5355
+
+        if query == "random":
+            query = ''.join(random.choice(string.lowercase) for i in range(16))
+        llmnr_packet_data = "\x31\x81\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00" + chr(length) + query + "\x00\x00\x01\x00\x01"
+
+        # Send the LLMNR query
+        sock.sendto(llmnr_packet_data, (mcast_addr, mcast_port))
+
+        event = self.gen_event()
+        event['dst_port'] = 5355
+
+        # Check if a response was received
+        while 1:
+            try:
+                resp = sock.recvfrom(1024)
+                # If a response was received, parse the results into an event
+                if resp:
+                    event['src_ip'] = str(resp[1][0])
+                    event['src_port'] = str(resp[1][1])
+                    event['logdata']["responder_ip"] = str(resp[1][0])
+                    event['logdata']["query"] = query
+                    event['logdata']["response"] = str(resp[0][13:(13+length)])
+                    event['logdata']["DATA"] = codecs.escape_encode(resp[0])
+                    event['logdata']["protocol"] = "llmnr"
+                    sock.close()
+                    self.events.append(event)
+                    break
+            # If no response, wait for the socket to timeout and close it
+            except socket.timeout:
+                sock.close()
+                break
+
+
+    def decode_netbios_name(self, nbname):
+        """
+        Return the NetBIOS first-level decoded nbname.
+        https://stackoverflow.com/questions/13652319/decode-netbios-name-python
+        """
+        if len(nbname) != 32:
+            return nbname
+        l = []
+        for i in range(0, 32, 2):
+            l.append(chr(((ord(nbname[i]) - 0x41) << 4) | ((ord(nbname[i+1]) - 0x41) & 0xf)))
+        return ''.join(l).split('\x00', 1)[0]
+
+    def get_broadcast_addresses(self):
+
+        with open('/etc/opencanaryd/t1000.broadcasts') as inFile:
+            return [x.strip() for x in inFile.read().strip().splitlines()]
+
+
+    def query_nbns(self, query):
+        # Configure the socket
+        
+        for broadcast_address in self.get_broadcast_addresses():
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.settimeout(2)
+            sock.bind(('0.0.0.0', 0))
+
+            port = 137
+            if query == "WPAD":
+                # Format WPAD into NetBIOS query format
+                nbns_query = "\x46\x48\x46\x41\x45\x42\x45\x45\x43\x41\x43\x41\x43\x41\x43\x41\x43\x41\x43\x41\x43\x41\x43\x41\x43\x41\x43\x41\x43\x41\x41\x41"
+            else:
+                # Create a query consisting of 16 random characters
+                query = ''.join(random.choice(string.lowercase) for i in range(16))
+                # Encode the query in the format required by NetBIOS
+                nbns_query = ''.join([chr((ord(c)>>4) + ord('A')) + chr((ord(c)&0xF) + ord('A')) for c in query])
+
+            # Send the NBNS query
+            sock.sendto("\x87\x3c\x01\x10\x00\x01\x00\x00\x00\x00\x00\x00\x20" + nbns_query + "\x00\x00\x20\x00\x01", (broadcast_address, port))
+
+
+            event = self.gen_event()
+            event['dst_port'] = 137
+
+            # Check if a response was received
+            while 1:
+                try:
+                    resp = sock.recvfrom(1024)
+                    # If a response was received, parse the results into a event
+                    if resp:
+                        event['src_ip'] = str(resp[1][0])
+                        event['src_port'] = str(resp[1][1])
+                        event['logdata']["responder_ip"] = str(resp[1][0])
+                        event['logdata']["query"] = str(query).strip()
+                        event['logdata']["response"] = self.decode_netbios_name(str(resp[0][13:45])).strip()
+                        event['logdata']["DATA"] = codecs.escape_encode(resp[0])
+                        event['logdata']["protocol"] = "nbns"
+                        event['logdata']["broadcast"] = broadcast_address
+                
+                        # Convert the NetBIOS encoded response back to the original query
+                        self.events.append(event)
+                        sock.close()
+                        break
+                # If no response, wait for the socket to timeout and close it
+                except socket.timeout:
+                    sock.close()
+                    break
+
+    def logResults(self):
+        with open('/var/log/opencanary/respondered.log', 'a') as log:
+            log.write('\n'.join([json.dumps(event, sort_keys=True) for event in self.events]) + '\n')
+            
+            event = self.gen_event()
+            event["logdata"] = {"msg": "Respondered finished!!!"}
+            log.write(json.dumps(event, sort_keys=True) + '\n')
+            log.flush()
+
+    def logStart(self):
+        event = self.gen_event()
+        event["logdata"] = {"msg": "Respondered running!!!"}
+        with open('/var/log/opencanary/respondered.log', 'a') as log:
+            log.write(json.dumps(event, sort_keys=True) + '\n')
+            log.flush()
+
+
+    def generate(self):
+        self.logStart()
+        self.query_llmnr("wpad", 4)
+        self.query_llmnr("random", 16)
+        self.query_nbns("WPAD")
+        self.query_nbns("random")
+        self.logResults()
 
 
 
@@ -470,6 +628,7 @@ def processArgs():
     parser.add_argument('--scan', action='store_true', help='Perform scan on impersonation target.')
     parser.add_argument('--target', nargs=1, metavar='<hostname>', help="Target to impersonate, overwrites config.")
     parser.add_argument('--patrol', action='store_true', help='Check impersonation services against listening ports. Bounce services as needed.')
+    parser.add_argument('--respondered', action='store_true', help='query for responder detction (LLMNR and NetBIOS Responder Detection)')
     parser.add_argument('--kill', action='store_true', help='Stop all honey services.')
     parser.add_argument('--conf', nargs=1, metavar='<conf path>', help='Configuration file to scan and watch services')
     parser.add_argument('--cron', action='store_true', help='prints recommended cron entry.')
@@ -480,12 +639,12 @@ def processArgs():
 def loadT1000Config(confPath):
     try:
         with open(confPath, "r") as fname:
-            print "[-] Loading t1000 config file: %s" % confPath
+            print("[-] Loading t1000 config file: %s" % confPath)
             return json.load(fname)
     except IOError as e:
-        print "[-] Failed to open %s for reading (%s)" % (confPath, e)
+        print("[-] Failed to open %s for reading (%s)" % (confPath, e))
     except Exception as e:
-        print "[-] An error occured loading %s (%s)" % (confPath, e)
+        print("[-] An error occured loading %s (%s)" % (confPath, e))
 
 
 def aquireRandomTarget(conf):
@@ -497,7 +656,7 @@ def patrolServices(conf):
 
     mitmdumpRestart = False
 
-    listeningPorts = runBash("netstat -na | egrep -i 'listen\s' | egrep '0\.0\.0\.0:' | cut -d ':' -f2 | awk '{print $1}'").read().splitlines()
+    listeningPorts = runBash("netstat -na | egrep -i 'listen\s' | egrep '0\.0\.0\.0:' | cut -d ':' -f2 | awk '{print($1}'").read().splitlines()
 
     for servicePort, serviceDetails in conf.iteritems():
         if servicePort != 'target' and servicePort not in listeningPorts:
@@ -521,7 +680,7 @@ def patrolServices(conf):
                     mitmdumpCommand = ['/usr/bin/sudo', '/usr/local/bin/mitmdump']
 
                 mitmdumpCommand.extend(serviceDetails['options']['args'].split())
-                print "[-] mitmdump command: %s" % (mitmdumpCommand)
+                print("[-] mitmdump command: %s" % (mitmdumpCommand))
 
                 os.system(' '.join(mitmdumpCommand))
 
@@ -543,6 +702,10 @@ def main():
         conf = loadT1000Config(options.conf[0])
     else:
         conf = None
+
+    if options.respondered:
+        respondered = Respondered()
+        respondered.generate()
 
     if options.scan:
         if options.target or conf:
