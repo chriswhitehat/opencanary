@@ -580,19 +580,20 @@ class Respondered(object):
                     sock.close()
                     break
 
-    def logResults(self):
-        with open('/var/log/opencanary/respondered.log', 'a') as log:
-            log.write('\n'.join([json.dumps(event, sort_keys=True) for event in self.events]) + '\n')
-            
-            event = self.gen_event()
-            event["logdata"] = {"msg": "Respondered finished!!!"}
-            log.write(json.dumps(event, sort_keys=True) + '\n')
-            log.flush()
-
     def logStart(self):
         event = self.gen_event()
         event["logdata"] = {"msg": "Respondered running!!!"}
         with open('/var/log/opencanary/respondered.log', 'a') as log:
+            log.write(json.dumps(event, sort_keys=True) + '\n')
+            log.flush()
+
+
+    def logResults(self):
+        with open('/var/log/opencanary/respondered.log', 'a') as log:
+            log.write('\n'.join([json.dumps(event, sort_keys=True) for event in self.events]))
+            log.flush()
+            event = self.gen_event()
+            event["logdata"] = {"msg": "Respondered finished!!!"}
             log.write(json.dumps(event, sort_keys=True) + '\n')
             log.flush()
 
