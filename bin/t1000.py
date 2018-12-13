@@ -725,7 +725,10 @@ def main():
             if hostname == "random":
                 hostname = aquireRandomTarget(conf)
 
-            iface = getattr(options, 'iface', 'eth0')
+            if options.iface:
+                iface = options.iface[0]
+            else:
+                iface = 'eth0'
 
             killServices()
 
