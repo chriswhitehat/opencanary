@@ -319,10 +319,11 @@ reverse: %s://%s:%s/
 
 class Imposter(object):
     """Enumerate ports and services on mirror host and generates opencanary configs as well as mitm reverse proxy configs"""
-    def __init__(self, mirrorHost, force=False):
+    def __init__(self, mirrorHost, iface='eth0', force=False):
         super(Imposter, self).__init__()
         self.mirrorHost = mirrorHost
         self.mirrorIP = gethostbyname(self.mirrorHost)
+        self.iface = iface
         self.mirrorHostLive = False
         self.services = []
         self.__config = None
@@ -371,7 +372,7 @@ class Imposter(object):
         ps = nmap.PortScanner()
 
         # Setup sniffing thread to watch nmap scan
-        sniffer = Sniffer(self.mirrorIP)
+        sniffer = Sniffer(self.mirrorIP, self.iface)
         sniffer.start()
 
         # run scan, capturing packets from sniffer thread
@@ -627,6 +628,7 @@ def processArgs():
     parser = argparse.ArgumentParser(description='T-1000, automatic polymorphic low-interaction honeypot', prog='t1000')
     
     parser.add_argument('--scan', action='store_true', help='Perform scan on impersonation target.')
+    parser.add_argument('--iface', action='store_true', help='Interface to sniff during scan.')
     parser.add_argument('--target', nargs=1, metavar='<hostname>', help="Target to impersonate, overwrites config.")
     parser.add_argument('--patrol', action='store_true', help='Check impersonation services against listening ports. Bounce services as needed.')
     parser.add_argument('--respondered', action='store_true', help='query for responder detction (LLMNR and NetBIOS Responder Detection)')
@@ -723,9 +725,11 @@ def main():
             if hostname == "random":
                 hostname = aquireRandomTarget(conf)
 
+            iface = get(options, 'iface', 'eth0')
+
             killServices()
 
-            imp = Imposter(hostname)
+            imp = Imposter(hostname, iface)
 
             imp.scanMirrorHost()
 
