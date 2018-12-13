@@ -628,7 +628,7 @@ def processArgs():
     parser = argparse.ArgumentParser(description='T-1000, automatic polymorphic low-interaction honeypot', prog='t1000')
     
     parser.add_argument('--scan', action='store_true', help='Perform scan on impersonation target.')
-    parser.add_argument('--iface', action='store_true', help='Interface to sniff during scan.')
+    parser.add_argument('--iface', nargs=1, help='Interface to sniff during scan.')
     parser.add_argument('--target', nargs=1, metavar='<hostname>', help="Target to impersonate, overwrites config.")
     parser.add_argument('--patrol', action='store_true', help='Check impersonation services against listening ports. Bounce services as needed.')
     parser.add_argument('--respondered', action='store_true', help='query for responder detction (LLMNR and NetBIOS Responder Detection)')
