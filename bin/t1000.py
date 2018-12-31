@@ -496,6 +496,7 @@ class Respondered(object):
                 resp = sock.recvfrom(1024)
                 # If a response was received, parse the results into an event
                 if resp:
+                    event["logdata"] = {"msg": "Response Received - LLMNR"}
                     event['src_ip'] = str(resp[1][0])
                     event['src_port'] = str(resp[1][1])
                     event['logdata']["responder_ip"] = str(resp[1][0])
@@ -563,6 +564,7 @@ class Respondered(object):
                     resp = sock.recvfrom(1024)
                     # If a response was received, parse the results into a event
                     if resp:
+                        event["logdata"] = {"msg": "Response Received - NBNS"}
                         event['src_ip'] = str(resp[1][0])
                         event['src_port'] = str(resp[1][1])
                         event['logdata']["responder_ip"] = str(resp[1][0])
