@@ -809,9 +809,9 @@ def main():
             exit()
         elif options.forcerand:
             hostname, mac = aquireRandomTarget(iface)
-        elif optTarget == 'random_rotating':
+        elif optTarget == 'random-rotating':
             hostname, mac = aquireRandomTarget(iface)
-        elif optTarget == 'random_sticky':
+        elif optTarget == 'random-sticky':
             if confTarget == 'localhost' or not confTarget:
                 hostname, mac = aquireRandomTarget(iface)
             else:
