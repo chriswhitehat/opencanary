@@ -730,7 +730,7 @@ def patrolServices(conf):
     listeningPorts = runBash("netstat -na | egrep -i 'listen\s' | egrep '0\.0\.0\.0:' | cut -d ':' -f2 | awk '{print($1}'").read().splitlines()
 
     for servicePort, serviceDetails in conf.iteritems():
-        if servicePort != 'target' and servicePort not in listeningPorts:
+        if servicePort != 'target' and servicePort!= 'mac' and servicePort not in listeningPorts:
             if serviceDetails['type'] == 'opencanary':
                 opencanaryRestart = True
             elif serviceDetails['type'] == 'reverseproxy':
