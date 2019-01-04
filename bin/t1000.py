@@ -3,6 +3,8 @@ import socket
 import random
 import string
 import codecs
+import fcntl
+import struct
 import os, ssl, sys, json, argparse, re
 from datetime import datetime
 from OpenSSL import crypto
@@ -10,6 +12,7 @@ from socket import gethostname, gethostbyname, getfqdn
 from simplejson import dumps
 from collections import OrderedDict
 from subprocess import Popen, PIPE
+from netaddr import *
 
 from pkg_resources import resource_filename
 
@@ -319,9 +322,10 @@ reverse: %s://%s:%s/
 
 class Imposter(object):
     """Enumerate ports and services on mirror host and generates opencanary configs as well as mitm reverse proxy configs"""
-    def __init__(self, mirrorHost, iface='eth0', force=False):
+    def __init__(self, mirrorHost, mirrorMac='', iface='eth0', force=False):
         super(Imposter, self).__init__()
         self.mirrorHost = mirrorHost
+        self.mirrorMac = mirrorMac
         self.mirrorIP = gethostbyname(self.mirrorHost)
         self.iface = iface
         self.mirrorHostLive = False
@@ -430,7 +434,8 @@ class Imposter(object):
 
     def updateT1000(self):
         if self.mirrorHostLive:
-            t1000Config = {'target': self.mirrorHost}
+            t1000Config = {'target': self.mirrorHost,
+                            'mac': self.mirrorMac}
             for service in self.services:
                 if not service.portCollision:
                     t1000Config[service.port] = {'port': service.port,
@@ -630,6 +635,7 @@ def processArgs():
     parser = argparse.ArgumentParser(description='T-1000, automatic polymorphic low-interaction honeypot', prog='t1000')
     
     parser.add_argument('--scan', action='store_true', help='Perform scan on impersonation target.')
+    parser.add_argument('--forcerand', action='store_true', help='Force a random impersonation target. Ignores target option and conf target when set.')
     parser.add_argument('--iface', nargs=1, help='Interface to sniff during scan.')
     parser.add_argument('--target', nargs=1, metavar='<hostname>', help="Target to impersonate, overwrites config.")
     parser.add_argument('--patrol', action='store_true', help='Check impersonation services against listening ports. Bounce services as needed.')
@@ -648,12 +654,72 @@ def loadT1000Config(confPath):
             return json.load(fname)
     except IOError as e:
         print("[-] Failed to open %s for reading (%s)" % (confPath, e))
+        return {}
     except Exception as e:
         print("[-] An error occured loading %s (%s)" % (confPath, e))
+        return {}
 
 
-def aquireRandomTarget(conf):
-    return 'localhost'
+def getIPAddress(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, struct.pack('256s', ifname[:15]))[20:24])
+
+def getNetCIDR(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return IPNetwork('0.0.0.0/%s' % socket.inet_ntoa(fcntl.ioctl(s, 35099, struct.pack('256s', ifname))[20:24])).prefixlen
+
+def ipInBlacklist(ip):
+    if os.path.exists('/etc/opencanaryd/t1000.blacklist'):
+        blacklist = []
+        with open('/etc/opencanaryd/t1000.blacklist') as blacklistFile:
+            blacklist = blacklistFile.read().strip().splitlines()
+
+        for blackip in blacklist:
+            if '-' in blackip:
+                start, end = blackip.split('-')
+                if IPAddress(ip) in iter_iprange(start, end):
+                    return True
+            else:
+                if IPAddress(ip) == IPAddress(blackip):
+                    return True
+    return False
+
+
+def aquireRandomTarget(iface):
+    ip = getIPAddress(iface)
+    cidr = getNetCIDR(iface)
+
+    ps = nmap.PortScanner()
+
+    nmapResults = ps.scan(hosts='%s/%d' % (ip, cidr), arguments='-sn')
+
+    primaryList = []
+    secondaryList = []
+
+    for targetip, host in nmapResults['scan'].items():
+        if targetip != ip and not ipInBlacklist(targetip):
+            if host['status']['state'] == 'up':
+                if not host['hostname']:
+                    secondaryList.append((targetip, host['addresses']['mac']))
+                elif host['status']['reason'] == 'conn-refused':
+                    secondaryList.append((host['hostname'], host['addresses']['mac']))
+                elif int(targetip.split('.')[-1]) < 20:
+                    secondaryList.append((host['hostname'], host['addresses']['mac']))
+                else:
+                    primaryList.append((host['hostname'], host['addresses']['mac']))
+            else:
+                if host['hostname']:
+                    secondaryList.append((host['hostname'], host['addresses']['mac']))
+                else:
+                    secondaryList.append((targetip, host['addresses']['mac']))
+
+    if primaryList:
+        return random.choice(primaryList)
+    elif secondaryList:
+        return random.choice(secondaryList)
+    else:
+        return ('localhost', '')
+
 
 def patrolServices(conf):
 
@@ -703,50 +769,77 @@ def main():
     if options.cron:
         print('%s /usr/local/bin/t1000.py --patrol --conf /etc/opencanaryd/t1000.conf' % (sys.executable))
 
-    if options.conf:
-        conf = loadT1000Config(options.conf[0])
-    else:
-        conf = None
-
     if options.respondered:
         respondered = Respondered()
         respondered.generate()
+        exit()
+    
+    if options.conf:
+        conf = loadT1000Config(options.conf[0])
+
+        if 'target' in conf:
+            confTarget = conf['target'].lower()
+        else:
+            confTarget = ''
+
+        if 'mac' in conf:
+            mac = conf['mac']
+        else:
+            mac = ''
+    else:
+        conf = {}
+        confTarget = ''
+        mac = ''
+
+    if options.target:
+        optTarget = options.target[0].lower()
+    else:
+        optTarget = ''
+
+    if options.iface:
+        iface = options.iface[0]
+    else:
+        iface = 'eth0'
+
 
     if options.scan:
-        if options.target or conf:
 
-            if options.target:
-                hostname = options.target[0].lower()
+        if optTarget == 'custom' or confTarget == 'custom':
+            print('Error: target set to custom, scan is not applicable.')
+            exit()
+        elif options.forcerand:
+            hostname, mac = aquireRandomTarget(iface)
+        elif optTarget == 'random_rotating':
+            hostname, mac = aquireRandomTarget(iface)
+        elif optTarget == 'random_sticky':
+            if confTarget == 'localhost' or not confTarget:
+                hostname, mac = aquireRandomTarget(iface)
             else:
-                hostname = conf['target'].lower()
-
-            if hostname == 'custom':
-                print('Error: target set to custom, scan is not applicable.')
-                exit()
-
-            if hostname == "random":
-                hostname = aquireRandomTarget(conf)
-
-            if options.iface:
-                iface = options.iface[0]
-            else:
-                iface = 'eth0'
-
-            killServices()
-
-            imp = Imposter(hostname, iface)
-
-            imp.scanMirrorHost()
-
-            imp.updateOpenCanaryConf()
-
-            imp.updateReverseProxyConf()
-
-            imp.updateT1000()
-
-            #imp.updateSamba()
+                hostname = confTarget
+        elif optTarget == 'random':
+            hostname = 'localhost'
+        elif optTarget:
+            hostname = optTarget
+        elif confTarget:
+            hostname = confTarget
         else:
-            print('Error: scan requires a configuration file (--conf) or a target (--target)')
+            print('Error: scan requires a configuration file with target (--conf), a cli target (--target), or forced random host (--forcerand)')
+            exit()
+
+        killServices()
+
+        imp = Imposter(hostname, mac, iface)
+
+        imp.scanMirrorHost()
+
+        imp.updateOpenCanaryConf()
+
+        imp.updateReverseProxyConf()
+
+        imp.updateT1000()
+
+        #imp.updateSamba()
+        
 
     if options.patrol:
         if conf:
