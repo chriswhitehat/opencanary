@@ -699,7 +699,7 @@ def aquireRandomTarget(iface):
     for targetip, host in nmapResults['scan'].items():
         if targetip != ip and not ipInBlacklist(targetip):
             if host['status']['state'] == 'up':
-                if not host['hostname']:
+                if 'hostname' not in host or not host['hostname']:
                     secondaryList.append((targetip, host['addresses']['mac']))
                 elif host['status']['reason'] == 'conn-refused':
                     secondaryList.append((host['hostname'], host['addresses']['mac']))
