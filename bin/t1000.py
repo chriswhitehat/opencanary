@@ -8,7 +8,7 @@ import struct
 import os, ssl, sys, json, argparse, re
 from datetime import datetime
 from OpenSSL import crypto
-from socket import gethostname, gethostbyname, getfqdn
+from socket import gethostname, gethostbyname, gethostbyaddr, getfqdn
 from simplejson import dumps
 from collections import OrderedDict
 from subprocess import Popen, PIPE
@@ -685,7 +685,7 @@ def ipInBlacklist(ip):
     return False
 
 
-def aquireRandomTarget(iface):
+def acquireRandomTarget(iface):
     ip = getIPAddress(iface)
     cidr = getNetCIDR(iface)
 
@@ -700,7 +700,11 @@ def aquireRandomTarget(iface):
         if targetip != ip and not ipInBlacklist(targetip):
             if host['status']['state'] == 'up':
                 if 'hostname' not in host or not host['hostname']:
-                    secondaryList.append((targetip, host['addresses']['mac']))
+                    try:
+                        rec = gethostbyaddr(targetip)
+                        secondaryList.append((rec[0], host['addresses']['mac']))
+                    except:    
+                        secondaryList.append((targetip, host['addresses']['mac']))
                 elif host['status']['reason'] == 'conn-refused':
                     secondaryList.append((host['hostname'], host['addresses']['mac']))
                 elif int(targetip.split('.')[-1]) < 20:
@@ -711,7 +715,11 @@ def aquireRandomTarget(iface):
                 if host['hostname']:
                     secondaryList.append((host['hostname'], host['addresses']['mac']))
                 else:
-                    secondaryList.append((targetip, host['addresses']['mac']))
+                    try:
+                        rec = gethostbyaddr(targetip)
+                        secondaryList.append((rec[0], host['addresses']['mac']))
+                    except:    
+                        secondaryList.append((targetip, host['addresses']['mac']))
 
     if primaryList:
         return random.choice(primaryList)
@@ -764,6 +772,10 @@ def killServices():
 
 def main():
 
+    if os.geteuid != 0:
+        print("Error: must be run as root.")
+        exit()
+
     options = processArgs()
 
     if options.cron:
@@ -808,12 +820,12 @@ def main():
             print('Error: target set to custom, scan is not applicable.')
             exit()
         elif options.forcerand:
-            hostname, mac = aquireRandomTarget(iface)
+            hostname, mac = acquireRandomTarget(iface)
         elif optTarget == 'random-rotating':
-            hostname, mac = aquireRandomTarget(iface)
+            hostname, mac = acquireRandomTarget(iface)
         elif optTarget == 'random-sticky':
             if confTarget == 'localhost' or not confTarget:
-                hostname, mac = aquireRandomTarget(iface)
+                hostname, mac = acquireRandomTarget(iface)
             else:
                 hostname = confTarget
         elif optTarget == 'random':
