@@ -751,7 +751,7 @@ def patrolServices(conf):
         runBash('sudo killall -9 mitmdump')
 
         for servicePort, serviceDetails in conf.iteritems():
-            if servicePort != 'target' and serviceDetails['type'] == 'reverseproxy':
+            if servicePort != 'target' and servicePort!= 'mac' and serviceDetails['type'] == 'reverseproxy':
 
                 if servicePort > 1024:
                     mitmdumpCommand = ['/usr/local/bin/mitmdump']
