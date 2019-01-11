@@ -772,9 +772,9 @@ def killServices():
 
 def main():
 
-    if os.geteuid != 0:
-        print("Error: must be run as root.")
-        exit()
+    # if os.geteuid != 0:
+    #     print("Error: must be run as root.")
+    #     exit()
 
     options = processArgs()
 
