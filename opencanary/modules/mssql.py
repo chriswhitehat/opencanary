@@ -373,8 +373,8 @@ class MSSQL(CanaryService):
         CanaryService.__init__(self, config=config, logger=logger)
 
         if instanceParams:
-            self.port = int(instanceParams["mssql.port"])
-            self.version = instanceParams["mssql.version"]
+            self.port = int(instanceParams.get("mssql.port", 1433))
+            self.version = instanceParams.get("mssql.version", "2012")
         else:
             self.port = int(config.getVal("mssql.port", default=1433))
             self.version = config.getVal("mssql.version", default="2012")

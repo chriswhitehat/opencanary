@@ -129,9 +129,9 @@ class HTTPProxy(CanaryService):
     def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
         if instanceParams:
-            self.port = int(instanceParams['httpproxy.port'])
-            self.banner = instanceParams['httpproxy.banner'].encode('utf8')
-            self.skin = instanceParams['httpproxy.skin']
+            self.port = int(instanceParams.get('httpproxy.port', 8443))
+            self.banner = instanceParams.get('httpproxy.banner', '').encode('utf8')
+            self.skin = instanceParams.get('httpproxy.skin', 'squid')
         else:
             self.port = int(config.getVal('httpproxy.port', default=8443))
             self.banner = config.getVal('httpproxy.banner', '').encode('utf8')

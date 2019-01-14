@@ -54,8 +54,8 @@ class Telnet(CanaryService):
     def __init__(self, config=None, logger=None, instanceParams={}):
         CanaryService.__init__(self, config=config, logger=logger)
         if instanceParams:
-            self.port = int(instanceParams['telnet.port'])
-            self.banner = instanceParams['telnet.banner'].encode('utf8')
+            self.port = int(instanceParams.get('telnet.port', 23))
+            self.banner = instanceParams.get('telnet.banner', '').encode('utf8')
         else:
             self.port = int(config.getVal('telnet.port', default=8023))
             self.banner = config.getVal('telnet.banner', '').encode('utf8')            
