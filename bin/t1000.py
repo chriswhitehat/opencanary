@@ -107,9 +107,9 @@ class ImposterService(object):
         self.protocol = protocol
         self.details = details
         self.certDir = '/etc/opencanaryd/ssl'
-        self.banner = None
+        self.banner = ''
         self.probes = None
-        self.ssl = None
+        self.ssl = ''
         self.certCloned = False
         self.name = None
         self.serverHeader = None
@@ -158,9 +158,9 @@ class ImposterService(object):
                 self.name = 'genericudp'
 
         if 'script' in self.details:
-            self.banner = self.details['script'].get('banner', None)
-            self.ssl = self.details['script'].get('ssl-cert', None)
-            self.headers = self.details['script'].get('http-headers', None)
+            self.banner = self.details['script'].get('banner', '')
+            self.ssl = self.details['script'].get('ssl-cert', '')
+            self.headers = self.details['script'].get('http-headers', '')
 
             if self.headers:
                 serverHeaderMatch = re.search('Server: (?P<serverHeader>.+)', self.headers)
