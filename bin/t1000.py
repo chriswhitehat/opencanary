@@ -411,6 +411,8 @@ class Imposter(object):
             if self.nmapResults['status']['state'] == 'up':
                 self.mirrorHostLive = True
                 if 'tcp' in self.nmapResults:
+                    if len(self.nmapResults['tcp']) > 100:
+                        return
                     for port, details in self.nmapResults['tcp'].iteritems():
                         if port in self.probe_mapping:
                             details['probes'] = self.probe_mapping[port]
@@ -419,6 +421,8 @@ class Imposter(object):
                             if port in self.portsListening:
                                 self.services[-1].portCollision = True
                 if 'udp' in self.nmapResults:
+                    if len(self.nmapResults['udp']) > 100:
+                        return
                     for port, details in self.nmapResults['udp'].iteritems():
                         if details['state'] != 'filtered':
                             self.services.append(ImposterService(self.mirrorHost, port, 'udp', details))
