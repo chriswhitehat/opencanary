@@ -58,7 +58,7 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
         us = self.transport.getHost()
         peer = self.transport.getPeer()
 
-        if self.factory.maskpassword:
+        if self.transport.factory.maskpassword:
             logdata = {'USERNAME': self.user, 'PASSWORD': "<masked>", 'LOCALVERSION': self.transport.ourVersionString, 'REMOTEVERSION': self.transport.otherVersionString}
         else:
             logdata = {'USERNAME': self.user, 'PASSWORD': password, 'LOCALVERSION': self.transport.ourVersionString, 'REMOTEVERSION': self.transport.otherVersionString}
