@@ -86,7 +86,10 @@ class MySQL(Protocol, TimeoutMixin):
     def access_denied(self, seq_id, user, password=None):
         Y = "YES" if password else "NO"
         ip = self.transport.getPeer().host
-        msg = "Access denied for user '%s'@'%s' (using password: %s)" % (user, ip, Y)
+        if self.factory.maskpassword:
+            msg = "Access denied for user '%s'@'%s' (using password: <masked>)" % (user, ip)
+        else:
+            msg = "Access denied for user '%s'@'%s' (using password: %s)" % (user, ip, Y)
         return self.error_pkt(seq_id, MySQL.ERR_CODE_ACCESS_DENIED,
                               MySQL.SQL_STATE_ACCESS_DENIED, msg)
 
@@ -123,7 +126,11 @@ class MySQL(Protocol, TimeoutMixin):
                 # seq_id == 1 and payload has arrived
                 username, password = self.parse_auth(payload)
                 if username:
-                    logdata = {'USERNAME': username, 'PASSWORD': password}
+                    if self.factory.maskpassword:
+                        logdata = {'USERNAME': username, 'PASSWORD': "<masked>"}
+                    else:
+                        logdata = {'USERNAME': username, 'PASSWORD': password}
+
                     self.factory.canaryservice.log(logdata, transport=self.transport)
                     
                     self.transport.write(self.access_denied(0x02, username, password))
@@ -154,9 +161,11 @@ class CanaryMySQL(CanaryService):
         if instanceParams:
             self.port = int(instanceParams["mysql.port"])
             self.banner = instanceParams["mysql.banner"].encode()
+            self.maskpassword = instanceParams.get("mysql.maskpassword", True)
         else:
             self.port = int(config.getVal("mysql.port", default=3306))
             self.banner = config.getVal("mysql.banner", default="5.5.43-0ubuntu0.14.04.1").encode()
+            self.maskpassword = config.getVal("mysql.maskpassword", True)
         self.logtype = logger.LOG_MYSQL_LOGIN_ATTEMPT
         self.listen_addr = config.getVal('device.listen_addr', default='')
         if re.search('^[3456]\.[-_~.+\w]+$', self.banner) is None:

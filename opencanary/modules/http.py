@@ -106,14 +106,24 @@ class BasicLogin(Resource):
         if not useragent:
             useragent = '<not supplied>'
 
-        logdata = {
-            'USERNAME': username,
-            'PASSWORD': password,
-            'SKIN': self.skin,
-            'HOSTNAME': request.getRequestHostname(),
-            'PATH': request.path,
-            'USERAGENT': useragent
-        }
+        if self.factory.maskpassword:
+            logdata = {
+                'USERNAME': username,
+                'PASSWORD': "<masked>",
+                'SKIN': self.skin,
+                'HOSTNAME': request.getRequestHostname(),
+                'PATH': request.path,
+                'USERAGENT': useragent
+            }
+        else:
+            logdata = {
+                'USERNAME': username,
+                'PASSWORD': password,
+                'SKIN': self.skin,
+                'HOSTNAME': request.getRequestHostname(),
+                'PATH': request.path,
+                'USERAGENT': useragent
+            }
         logtype = self.factory.logger.LOG_HTTP_POST_LOGIN_ATTEMPT
         self.factory.log(logdata, transport=request.transport, logtype=logtype)
 
@@ -166,11 +176,13 @@ class CanaryHTTP(CanaryService):
             ubanner = instanceParams['http.banner']
             self.banner = ubanner.encode('utf8')
             self.skin = instanceParams['http.skin']
+            self.maskpassword = instanceParams.get('http.maskpassword', True)
         else:            
             self.port = int(config.getVal('http.port', default=80))
             ubanner = config.getVal('http.banner', default="Apache/2.2.22 (Ubuntu)")
             self.banner = ubanner.encode('utf8')
             self.skin = config.getVal('http.skin', default='basicLogin')
+            self.maskpassword = config.getVal('http.maskpassword', True)
         self.skindir = os.path.join(
             CanaryHTTP.resource_dir(), "skin", self.skin)
         self.staticdir = os.path.join(self.skindir, "static")

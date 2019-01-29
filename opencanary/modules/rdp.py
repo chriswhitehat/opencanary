@@ -17,12 +17,21 @@ class RDPObserver(RDPServerObserver):
     def onReady(self):
         domain, username, password = self._controller.getCredentials()
         hostname = self._controller.getHostname()
-        logdata = {
-            "DOMAIN": domain,
-            "USERNAME": username,
-            "PASSWORD": password,
-            "HOSTNAME": hostname
-        }
+        if self.factory.maskpassword:
+            logdata = {
+                "DOMAIN": domain,
+                "USERNAME": username,
+                "PASSWORD": "<masked>",
+                "HOSTNAME": hostname
+            }
+        else:
+            logdata = {
+                "DOMAIN": domain,
+                "USERNAME": username,
+                "PASSWORD": password,
+                "HOSTNAME": hostname
+            }
+
         transport = self._controller.getProtocol().transport
         us = transport.getHost()
         peer = transport.getPeer()
@@ -79,8 +88,10 @@ class CanaryRDP(ServerFactory, CanaryService):
 
         if instanceParams:
             self.port = instanceParams["rdp.port"]
+            self.maskpassword = instanceParams.get('rdp.maskpassword', True)
         else:
             self.port = config.getVal("rdp.port", 3389)
+            self.maskpassword = config.getVal('rdp.maskpassword', True)
 
         self.rssFile = self.resource_filename("login.rss")
         reader = rss.createReader(self.rssFile)

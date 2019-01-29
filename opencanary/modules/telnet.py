@@ -44,7 +44,11 @@ class AlertAuthTelnetProtocol(AuthenticatingTelnetProtocol):
             d.addErrback(self._ebLogin)
         self.transport.wont(ECHO).addCallback(login)
 
-        logdata = {'USERNAME': username, 'PASSWORD': password}
+        if self.factory.maskpassword:
+            logdata = {'USERNAME': username, 'PASSWORD': "<masked>"}
+        else:
+            logdata = {'USERNAME': username, 'PASSWORD': password}
+
         self.factory.canaryservice.log(logdata, transport=self.transport)
         return 'Discard'
 
@@ -56,9 +60,11 @@ class Telnet(CanaryService):
         if instanceParams:
             self.port = int(instanceParams.get('telnet.port', 23))
             self.banner = instanceParams.get('telnet.banner', '').encode('utf8')
+            self.maskpassword = instanceParams.get('telnet.maskpassword', True)
         else:
             self.port = int(config.getVal('telnet.port', default=8023))
-            self.banner = config.getVal('telnet.banner', '').encode('utf8')            
+            self.banner = config.getVal('telnet.banner', '').encode('utf8')
+            self.maskpassword = config.getVal('telnet.maskpassword', True)        
         self.logtype = logger.LOG_TELNET_LOGIN_ATTEMPT
         self.listen_addr = config.getVal('device.listen_addr', default='')
 

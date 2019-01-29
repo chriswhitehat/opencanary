@@ -4,9 +4,11 @@
     "ftp.banner": "FTP server ready",
     "ftp.enabled": false,
     "ftp.port": 21,
+    "ftp.maskpassword": true,
     "http.banner": "Apache/2.2.22 (Ubuntu)",
     "http.enabled": false,
     "http.port": 80,
+    "http.maskpassword": true,
     "http.skin": "nasLogin",
     "http.skin.list": [
         {
@@ -19,6 +21,7 @@
         }
     ],
     "httpproxy.port": 8080,
+    "httpproxy.maskpassword": true,
     "httpproxy.skin": "squid",
     "httproxy.skin.list": [
         {
@@ -88,10 +91,13 @@
     "mysql.banner": "5.5.43-0ubuntu0.14.04.1",
     "mysql.port": 3306,
     "mysql.enabled": false,
+    "mysql.maskpassword": true,
     "ssh.enabled": false,
     "ssh.port": 8022,
     "ssh.version": "SSH-2.0-OpenSSH_5.1p1 Debian-4",
+    "ssh.maskpassword": true,
     "rdp.enabled": false,
+    "rdp.maskpassword": true,
     "sip.enabled": false,
     "snmp.enabled": false,
     "ntp.enabled": false,
@@ -99,6 +105,7 @@
     "ntp.port": "123",
     "telnet.port": "23",
     "telnet.enabled": false,
+    "telnet.maskpassword": true,
     "telnet.banner": "",
     "telnet.honeycreds": [
         {
@@ -111,5 +118,6 @@
         }
     ],
     "mssql.enabled": false,
+    "mssql.maskpassword": true,
     "vnc.enabled": false
 }

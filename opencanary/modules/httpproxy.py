@@ -81,7 +81,11 @@ class AlertProxyRequest(Request):
             print "something NTLM"
             return
 
-        logdata = {'USERNAME': username, 'PASSWORD': password}
+        if self.factory.maskpassword:
+            logdata = {'USERNAME': username, 'PASSWORD': "<masked>"}
+        else:
+            logdata = {'USERNAME': username, 'PASSWORD': password}
+
         factory.log(logdata, transport=self.transport)
 
     def process(self):
@@ -132,10 +136,12 @@ class HTTPProxy(CanaryService):
             self.port = int(instanceParams.get('httpproxy.port', 8443))
             self.banner = instanceParams.get('httpproxy.banner', '').encode('utf8')
             self.skin = instanceParams.get('httpproxy.skin', 'squid')
+            self.maskpassword = instanceParams.get('httpproxy.maskpassword', True)
         else:
             self.port = int(config.getVal('httpproxy.port', default=8443))
             self.banner = config.getVal('httpproxy.banner', '').encode('utf8')
             self.skin = config.getVal('httpproxy.skin', default='squid')
+            self.maskpassword = config.getVal('httpproxy.maskpassword', True)
 
         self.skindir = os.path.join(
             HTTPProxy.resource_dir(), 'skin', self.skin)

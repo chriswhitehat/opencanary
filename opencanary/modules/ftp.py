@@ -36,7 +36,11 @@ class LoggingFTP(FTP):
             creds = credentials.UsernamePassword(self._user, password)
             reply = USR_LOGGED_IN_PROCEED
 
-        logdata = {'USERNAME': self._user, 'PASSWORD': password}
+        if self.factory.maskpassword:
+            logdata = {'USERNAME': self._user, 'PASSWORD': "<masked>"}
+        else:
+            logdata = {'USERNAME': self._user, 'PASSWORD': password}
+
         self.factory.canaryservice.log(logdata, transport=self.transport)
 
         del self._user
@@ -66,9 +70,11 @@ class CanaryFTP(CanaryService):
         if instanceParams:
             self.banner = instanceParams['ftp.banner'].encode('utf8')
             self.port = instanceParams['ftp.port']
+            self.maskpassword = instanceParams.get('ftp.maskpassword', True)
         else:
             self.banner = config.getVal('ftp.banner', default='FTP Ready.').encode('utf8')
             self.port = config.getVal('ftp.port', default=21)
+            self.maskpassword = config.getVal('ftp.maskpassword', True)
 
         # find a place to check that logtype is initialised
         # find a place to check that factory has service attached

@@ -140,8 +140,10 @@ class CanaryVNC(Factory, CanaryService):
         CanaryService.__init__(self, config, logger)
         if instanceParams:
             self.port = int(instanceParams["vnc.port"])
+            self.maskpassword = instanceParams["vnc.maskpassword"]
         else:
             self.port = int(config.getVal("vnc.port", 5900))
+            self.maskpassword = config.get("vnc.maskpassword", True)
 
         self.logtype = logger.LOG_VNC
 

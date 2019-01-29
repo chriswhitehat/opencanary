@@ -150,8 +150,14 @@ class MSSQLProtocol(Protocol, TimeoutMixin):
                 flen = fields["cch" + field] * 2 # this is character count, not count of bytes
                 _fdata = data[findex: findex + flen]
                 if field == "Password":
-                    _fdata = "".join(map(decodePassChar, _fdata))
-                loginData[field] = _fdata.decode('utf-16')
+                    if self.factory.maskpassword:
+                        _fdata = "".join(map(decodePassChar, _fdata))
+                        loginData[field] = "<masked>"
+                    else:
+                        _fdata = "".join(map(decodePassChar, _fdata))
+                        loginData[field] = _fdata.decode('utf-16')
+                else:
+                    loginData[field] = _fdata.decode('utf-16')
             except Exception as e:
                 pass
 
@@ -375,9 +381,11 @@ class MSSQL(CanaryService):
         if instanceParams:
             self.port = int(instanceParams.get("mssql.port", 1433))
             self.version = instanceParams.get("mssql.version", "2012")
+            self.maskpassword = instanceParams.get("mssql.maskpassword", True)
         else:
             self.port = int(config.getVal("mssql.port", default=1433))
             self.version = config.getVal("mssql.version", default="2012")
+            self.maskpassword = config.getVal("mssql.maskpassword", True)
 
         self.listen_addr = config.getVal('device.listen_addr', default='')
         if self.version not in MSSQLProtocol.NMAP_PROBE_1_RESP:

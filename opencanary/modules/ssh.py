@@ -340,6 +340,7 @@ def getDSAKeys():
     return publicKeyString, privateKeyString
 
 class HoneypotPasswordChecker:
+class HoneypotPasswordChecker:
     implements(checkers.ICredentialsChecker)
 
     credentialInterfaces = (credentials.IUsernamePassword,)
@@ -372,9 +373,11 @@ class CanarySSH(CanaryService):
         if instanceParams:
             self.port = int(instanceParams["ssh.port"])
             self.version = instanceParams["ssh.version"].encode('utf8')
+            self.maskpassword = instanceParams.get('ssh.maskpassword', True)
         else:
             self.port = int(config.getVal("ssh.port", default=22))
             self.version = config.getVal("ssh.version", default="SSH-2.0-OpenSSH_5.1p1 Debian-5").encode('utf8')
+            self.maskpassword = config.getVal('ssh.maskpassword', True)
         self.listen_addr = config.getVal('device.listen_addr', default='')
 
     def getService(self):
