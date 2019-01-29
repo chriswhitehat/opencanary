@@ -44,7 +44,7 @@ class AlertAuthTelnetProtocol(AuthenticatingTelnetProtocol):
             d.addErrback(self._ebLogin)
         self.transport.wont(ECHO).addCallback(login)
 
-        if self.factory.maskpassword:
+        if self.transport.factory.canaryservice.maskpassword:
             logdata = {'USERNAME': username, 'PASSWORD': "<masked>"}
         else:
             logdata = {'USERNAME': username, 'PASSWORD': password}
