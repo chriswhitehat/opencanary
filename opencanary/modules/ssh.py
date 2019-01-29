@@ -58,7 +58,11 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
         us = self.transport.getHost()
         peer = self.transport.getPeer()
 
-        logdata = {'USERNAME': self.user, 'PASSWORD': password, 'LOCALVERSION': self.transport.ourVersionString, 'REMOTEVERSION': self.transport.otherVersionString}
+        if self.factory.maskpassword:
+            logdata = {'USERNAME': self.user, 'PASSWORD': "<masked>", 'LOCALVERSION': self.transport.ourVersionString, 'REMOTEVERSION': self.transport.otherVersionString}
+        else:
+            logdata = {'USERNAME': self.user, 'PASSWORD': password, 'LOCALVERSION': self.transport.ourVersionString, 'REMOTEVERSION': self.transport.otherVersionString}
+
         logtype =  self.transport.factory.canaryservice.logger.LOG_SSH_LOGIN_ATTEMPT
 
         log = self.transport.factory.canaryservice.log
@@ -339,7 +343,6 @@ def getDSAKeys():
             privateKeyString = f.read()
     return publicKeyString, privateKeyString
 
-class HoneypotPasswordChecker:
 class HoneypotPasswordChecker:
     implements(checkers.ICredentialsChecker)
 
