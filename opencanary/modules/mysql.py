@@ -126,7 +126,7 @@ class MySQL(Protocol, TimeoutMixin):
                 # seq_id == 1 and payload has arrived
                 username, password = self.parse_auth(payload)
                 if username:
-                    if self.factory.maskpassword:
+                    if self.transport.factory.canaryservice.maskpassword:
                         logdata = {'USERNAME': username, 'PASSWORD': "<masked>"}
                     else:
                         logdata = {'USERNAME': username, 'PASSWORD': password}

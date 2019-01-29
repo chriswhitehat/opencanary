@@ -36,7 +36,7 @@ class LoggingFTP(FTP):
             creds = credentials.UsernamePassword(self._user, password)
             reply = USR_LOGGED_IN_PROCEED
 
-        if self.factory.maskpassword:
+        if self.transport.factory.canaryservice.maskpassword:
             logdata = {'USERNAME': self._user, 'PASSWORD': "<masked>"}
         else:
             logdata = {'USERNAME': self._user, 'PASSWORD': password}

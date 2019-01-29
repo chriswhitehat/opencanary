@@ -150,7 +150,7 @@ class MSSQLProtocol(Protocol, TimeoutMixin):
                 flen = fields["cch" + field] * 2 # this is character count, not count of bytes
                 _fdata = data[findex: findex + flen]
                 if field == "Password":
-                    if self.factory.maskpassword:
+                    if self.transport.factory.canaryservice.maskpassword:
                         _fdata = "".join(map(decodePassChar, _fdata))
                         loginData[field] = "<masked>"
                     else:
