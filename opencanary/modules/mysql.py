@@ -170,7 +170,10 @@ class CanaryMySQL(CanaryService):
         self.listen_addr = config.getVal('device.listen_addr', default='')
         if re.search('^[3456]\.[-_~.+\w]+$', self.banner) is None:
             mysql_version = re.search('x0A([^\\\\]+)', self.banner)
-            if mysql_version:
+
+            if not self.banner:
+                self.banner = "5.5.43"
+            elif mysql_version:
                 self.banner = mysql_version.groups()[0]
             else:
                 raise ConfigException("sql.banner", "Invalid MySQL Banner")
