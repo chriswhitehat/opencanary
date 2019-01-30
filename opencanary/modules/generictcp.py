@@ -71,7 +71,10 @@ class CanaryGenericTCP(Factory, CanaryService):
             self.probes = {}
         elif self.probes:
             for probe, response in self.probes.items():
-                self.probes[probe] = codecs.escape_decode(response)[0]
+                try:
+                    self.probes[probe] = codecs.escape_decode(response)[0]
+                except(ValueError):
+                    pass
 
     def getService(self):
         factory = self

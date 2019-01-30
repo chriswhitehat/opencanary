@@ -169,7 +169,11 @@ class CanaryMySQL(CanaryService):
         self.logtype = logger.LOG_MYSQL_LOGIN_ATTEMPT
         self.listen_addr = config.getVal('device.listen_addr', default='')
         if re.search('^[3456]\.[-_~.+\w]+$', self.banner) is None:
-            raise ConfigException("sql.banner", "Invalid MySQL Banner")
+            mysql_version = re.search('x0A([^\\\\]+)', self.banner)
+            if mysql_version:
+                self.banner = mysql_version.groups()[0]
+            else:
+                raise ConfigException("sql.banner", "Invalid MySQL Banner")
 
 
     def getService(self):
