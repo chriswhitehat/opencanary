@@ -176,7 +176,8 @@ class CanaryMySQL(CanaryService):
             elif mysql_version:
                 self.banner = mysql_version.groups()[0]
             else:
-                raise ConfigException("sql.banner", "Invalid MySQL Banner")
+                self.banner = "5.5.43"
+                #raise ConfigException("sql.banner", "Invalid MySQL Banner")
 
 
     def getService(self):
