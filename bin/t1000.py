@@ -356,6 +356,8 @@ class Imposter(object):
         if self.mirrorHostLive:
             self.loadOpenCanaryDefaults()
 
+            self.__config['device.target'] = self.mirrorHost
+            
             for service in [x for x in self.services if not x.portCollision if x.type == 'opencanary']:
                 self.__config.update(service.getOpenCanaryConf())
 

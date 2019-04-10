@@ -90,6 +90,7 @@ class LoggerBase(object):
         logdata['node_id'] = self.node_id
         logdata['node_hostname'] = socket.getfqdn()
         logdata['node_ip'] = socket.gethostbyname(socket.gethostname())
+        logdata['target'] = self.target
         if not logdata.has_key('src_host'):
             logdata['src_host'] = ''
         if not logdata.has_key('src_port'):
@@ -112,6 +113,7 @@ class PyLogger(LoggerBase):
 
     def __init__(self, config, handlers, formatters={}):
         self.node_id = config.getVal('device.node_id')
+        self.target = config.getVal('device.target', "none")
 
         # Build config dict to initialise
         # Ensure all handlers don't drop logs based on severity level

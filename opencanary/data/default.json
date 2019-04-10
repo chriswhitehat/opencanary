@@ -1,6 +1,7 @@
 {
     "device.node_id": "opencanary-1",
     "device.interface": "eth0",
+    "device.target": "none",
     "ftp.banner": "FTP server ready",
     "ftp.enabled": false,
     "ftp.port": 21,
